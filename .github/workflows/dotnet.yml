@@ -33,4 +33,4 @@ jobs:
     - name: Push
       env:
         NUGETAPIKEY: ${{ secrets.NUGETAPIKEY }}
-      run: find RDPGW/bin/Release -type f -name '*.nupkg' -exec dotnet nuget push {} -s "https://api.nuget.org/v3/index.json" -k "$env:NUGETAPIKEY" \;
+      run: for i in $(find RDPGW/bin/Release -type f -name '*.nupkg');do; dotnet nuget push "$i" -s "https://api.nuget.org/v3/index.json" -k "$env:NUGETAPIKEY"; done
