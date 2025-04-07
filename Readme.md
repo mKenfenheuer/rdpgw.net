@@ -1,4 +1,10 @@
 # RDP Gateway .Net (RDPGW.Net)
+![GitHub License](https://img.shields.io/github/license/mkenfenheuer/rdpgw.net)
+ ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mkenfenheuer/rdpgw.net/dotnet.yml) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/mkenfenheuer/rdpgw.net/main) ![NuGet Version](https://img.shields.io/nuget/v/RDPGW) ![NuGet Downloads](https://img.shields.io/nuget/dt/RDPGW)
+
+
+
+
 
 **RDPGW.Net** is a lightweight and extensible ASP.NET library that brings **Remote Desktop Gateway (RDP Gateway)** functionality directly into your .NET web application. With easy plug-and-play integration, you can securely expose RDP services through your existing web app, with support for custom authentication and authorization flows.
 
@@ -15,7 +21,11 @@
 
 ### 1. Add the Library
 
-Currently, the package is not available on NuGet. Clone/download the project and add it to your solution as a reference.
+Add the package to your project:
+
+```bash
+dotnet add package RDPGW --version 
+```
 
 ### 2. Register the Services
 
