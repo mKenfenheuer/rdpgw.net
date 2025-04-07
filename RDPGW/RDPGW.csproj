@@ -14,11 +14,8 @@
     <PackageProjectUrl>https://github.com/mKenfenheuer/rdpgw.net</PackageProjectUrl>
     <Copyright>Maximilian Kenfenheuer</Copyright>
     <Description>RDPGW.Net is a lightweight and extensible ASP.NET library that brings Remote Desktop Gateway (RDP Gateway) functionality directly into your .NET web application. With easy plug-and-play integration, you can securely expose RDP services through your existing web app, with support for custom authentication and authorization flows.</Description>
-    <FileVersion>1.0.0</FileVersion>
-    <AssemblyVersion>1.0.0</AssemblyVersion>
     <PackageTags>rdp,gateway,rdpgw,mstsc</PackageTags>
     <PackageReadmeFile>Readme.md</PackageReadmeFile>
-    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

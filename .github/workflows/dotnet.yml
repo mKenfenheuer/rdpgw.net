@@ -29,12 +29,12 @@ jobs:
     - name: Publish
       run: dotnet publish
     - name: Pack
-      run:  dotnet pack --version-suffix "$(date +%s)"
+      run:  dotnet pack -p:Version=1.0.0.$(date +%s)
     - name: Push
       env:
         NUGETAPIKEY: ${{ secrets.NUGETAPIKEY }}
       run: |
         for i in $(find RDPGW/bin/Release -type f -name '*.nupkg')
         do
-          dotnet nuget push "$i" -s "https://api.nuget.org/v3/index.json" -k "$env:NUGETAPIKEY"
+          dotnet nuget push "$i" -s "https://api.nuget.org/v3/index.json" -k "$NUGETAPIKEY"
         done
