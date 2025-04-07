@@ -16,6 +16,9 @@ internal class MarshalExtensions
 
     internal static ArraySegment<byte> StructToArraySegment<T>(T str)
     {
+        if(str == null)
+            return [];
+
         int size = Marshal.SizeOf(str);
         byte[] arr = new byte[size];
 
