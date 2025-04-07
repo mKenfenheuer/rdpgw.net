@@ -63,7 +63,7 @@ public class AuthorizationHandler : IRDPGWAuthorizationHandler
 {
     public Task<bool> HandleUserAuthorization(string userId, string resource)
     {
-        return Task.FromResult(false);
+        return Task.FromResult(true);
     }
 }
 
