@@ -33,4 +33,4 @@ jobs:
     - name: Push
       env:
         NUGETAPIKEY: ${{ secrets.NUGETAPIKEY }}
-      run: find RDPGW/bin/Release -type f -name '*.nupkg' -exec dotnet nuget push {} -k "$env:NUGETAPIKEY" \;
+      run: find RDPGW/bin/Release -type f -name '*.nupkg' -exec dotnet nuget push RDPGW/bin/Release/RDPGW.1.0.0.nupkg -k "$env:NUGETAPIKEY" \;
