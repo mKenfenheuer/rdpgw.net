@@ -1,45 +1,62 @@
 # RDP Gateway .Net (RDPGW.Net)
-This library provides plug in RDP Gateway gateway functionality for your application. 
 
-## Getting Started
+**RDPGW.Net** is a lightweight and extensible ASP.NET library that brings **Remote Desktop Gateway (RDP Gateway)** functionality directly into your .NET web application. With easy plug-and-play integration, you can securely expose RDP services through your existing web app, with support for custom authentication and authorization flows.
 
-Add the library to your project as a reference (Nuget is not yet available)
 
-Add the services to the service catalogue like below:
+## ✨ Features
+
+- 🖥️ Seamlessly integrate RDP Gateway into any ASP.NET Core app.
+- 🔐 Customizable authentication (Basic, Digest, Negotiate).
+- 🛡️ Fine-grained resource-based authorization.
+- ⚙️ Simple service registration and middleware configuration.
+
+
+## 🚀 Getting Started
+
+### 1. Add the Library
+
+Currently, the package is not available on NuGet. Clone/download the project and add it to your solution as a reference.
+
+### 2. Register the Services
+
+In your `Program.cs` or wherever you're building your service container, add:
 
 ```csharp
 builder.Services.AddRDPGW();
+```
 
-//Optional custom handlers for authentication and authorization. See below section "Authentication & Authorization"
+#### Optional: Add Custom Handlers for Authentication and/or Authorization
+
+```csharp
 builder.Services.AddSingleton<IRDPGWAuthenticationHandler, AuthHandler>();
 builder.Services.AddSingleton<IRDPGWAuthorizationHandler, AuthorizationHandler>();
 ```
 
-Add the middleware to the application as first item like below:
+### 3. Use the Middleware
 
+Place this as the **first middleware** in the pipeline:
 
 ```csharp
 var app = builder.Build();
 
-app.UseRDPGW();
+app.UseRDPGW(); // Must be first
 
-...
+// Other middlewares
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+app.Run();
 ```
 
-## Authentication and Authorization
+## 🔐 Authentication & Authorization
 
-To authenticate users, create a custom authentication handler which implements the `IRDPGWAuthenticationHandler` interface and add it to the service catalogue as singleton.
+### Custom Authentication
 
-```csharp
-builder.Services.AddSingleton<IRDPGWAuthenticationHandler, AuthHandler>();
-```
+To authenticate users, implement `IRDPGWAuthenticationHandler`. The interface provides hooks for Basic, Digest, and Negotiate methods.
 
 ```csharp
-/* 
- * Perform authentication using the HTTP Authorization header value provided using the methods Basic, Digest and Negotiate.
- * Return a RDPGWAuthenticationResult based on the success/failure. If succeeded you can provide a unique userId string 
- * to be used for identifying the authenticated user during authorization checks.
- */
 public class AuthHandler : IRDPGWAuthenticationHandler
 {
     public Task<RDPGWAuthenticationResult> HandleBasicAuth(string auth)
@@ -50,40 +67,43 @@ public class AuthHandler : IRDPGWAuthenticationHandler
         var userName = split[0];
         var userPassword = split[1];
 
-        //Your custom autentication handling code
-        
+        // Your authentication logic here
+
         return Task.FromResult(RDPGWAuthenticationResult.Success(userName));
     }
 
     public Task<RDPGWAuthenticationResult> HandleDigestAuth(string auth)
     {
-        throw new NotImplementedException();
+        throw new NotImplementedException(); // Not used in this example.
     }
 
     public Task<RDPGWAuthenticationResult> HandleNegotiateAuth(string auth)
     {
-        throw new NotImplementedException();
+        throw new NotImplementedException(); // Not used in this example.
     }
 }
 ```
 
-To authorize users for a specific resource rather than any requested resource, create a custom authorization handler which implements the `IRDPGWAuthorizationHandler` interface and add it to the service catalogue as singleton.
+### Custom Authorization
 
-```csharp
-builder.Services.AddSingleton<IRDPGWAuthorizationHandler, AuthorizationHandler>();
-```
+To control access to specific RDP resources, implement `IRDPGWAuthorizationHandler`:
 
 ```csharp
 public class AuthorizationHandler : IRDPGWAuthorizationHandler
 {
-    /* 
-     * Perform Authorization checks against the resource requested. Return true for passed checks, false for failed checks.
-     * The userId represents the result userId provided from your custom authentication handler.
-     */
     public Task<bool> HandleUserAuthorization(string userId, string resource)
     {
-        //Your custom authorization handling code
-        return Task.FromResult(true);
+        // Your authorization logic here
+        return Task.FromResult(true); // Allow access
     }
 }
 ```
+
+The `userId` comes from your authentication handler. The `resource` is the identifier of the RDP target being accessed.
+
+
+## 📞 Support & Contribution
+
+- Found a bug? Want to suggest a feature? Open an [issue](https://github.com/mKenfenheuer/rdpgw.net/issues).
+- Contributions welcome via PRs!
+- License: GNU GPL v3
