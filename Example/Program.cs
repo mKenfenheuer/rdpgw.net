@@ -22,6 +22,8 @@ public class Program
         builder.Services.AddSingleton<IRDPGWAuthorizationHandler, AuthorizationHandler>();
 
         var app = builder.Build();
+        
+        app.UseRDPGW();
 
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
@@ -29,7 +31,6 @@ public class Program
             app.MapOpenApi();
         }
 
-        app.UseRDPGW();
 
         app.UseHttpsRedirection();
 
