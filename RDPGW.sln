@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RDPGW", "RDPGW\RDPGW.csproj", "{77172A39-2BA0-4874-ABD1-2E52A4A4922C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Example", "Example\Example.csproj", "{24C55A19-F1A0-4C4C-9FC3-58971811A577}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{77172A39-2BA0-4874-ABD1-2E52A4A4922C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77172A39-2BA0-4874-ABD1-2E52A4A4922C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77172A39-2BA0-4874-ABD1-2E52A4A4922C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77172A39-2BA0-4874-ABD1-2E52A4A4922C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{24C55A19-F1A0-4C4C-9FC3-58971811A577}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{24C55A19-F1A0-4C4C-9FC3-58971811A577}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{24C55A19-F1A0-4C4C-9FC3-58971811A577}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{24C55A19-F1A0-4C4C-9FC3-58971811A577}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

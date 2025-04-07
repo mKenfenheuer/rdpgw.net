@@ -1,0 +1,9 @@
+namespace RDPGW.Protocol;
+
+internal enum HTTP_EXTENDED_AUTH : ushort
+{
+    HTTP_EXTENDED_AUTH_NONE = 0x00,
+    HTTP_EXTENDED_AUTH_SC = 0x01,
+    HTTP_EXTENDED_AUTH_PAA = 0x02,
+    HTTP_EXTENDED_AUTH_SSPI_NTLM = 0x04,
+}
