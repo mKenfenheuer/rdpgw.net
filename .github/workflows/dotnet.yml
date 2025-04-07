@@ -26,3 +26,9 @@ jobs:
       run: dotnet build --no-restore
     - name: Test
       run: dotnet test --no-build --verbosity normal
+    - name: Pack
+      run:  dotnet pack --version-suffix "$(date +%s)"
+    - name: Publish
+      env:
+        NUGETAPIKEY: ${{ secrets.NUGETAPIKEY }}
+      run:  dotnet nuget push RDPGW/bin/Release/RDPGW.*.nupkg -k "$env:NUGETAPIKEY"
