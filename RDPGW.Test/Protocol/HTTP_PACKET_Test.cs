@@ -32,4 +32,29 @@ public sealed class HTTP_PACKET_Test
             Assert.IsTrue(data.SequenceEqual(packet.Data), $"Data mismatch for packet: {packet.TypeName}");
         }
     }
+
+    [TestMethod]
+    public void TestKeepalivePacket()
+    {
+        var keepalivePacket = new HTTP_KEEPALIVE_PACKET();
+        var data = keepalivePacket.ToBytes();
+        Assert.IsTrue(data.Count == 8, "Keepalive packet should have 8 bytes of data.");
+        var parsedPacket = HTTP_PACKET.FromBytes(data);
+        Assert.IsInstanceOfType(parsedPacket, typeof(HTTP_KEEPALIVE_PACKET), "Parsed packet should be of type HTTP_KEEPALIVE_PACKET.");
+    }
+
+    [TestMethod]
+    public void TestInvalidPacket()
+    {
+        var data = new byte[8];
+        try {
+            var parsedPacket = HTTP_PACKET.FromBytes(data);
+        }
+        catch (Exception ex)
+        {
+            Assert.IsTrue(ex is ArgumentException, "Expected ArgumentException for invalid packet.");
+            return;
+        }
+        Assert.Fail("Invalid packet parsing should throw!");
+    }
 }

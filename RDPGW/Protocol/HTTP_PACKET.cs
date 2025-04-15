@@ -81,6 +81,6 @@ public abstract class HTTP_PACKET
         }
 
         // Throw an exception if the packet type is not recognized.
-        throw new Exception($"Unknown packet type in header: 0x{header.PacketType:X}");
+        throw new ArgumentException($"Unknown packet type in header: 0x{header.PacketType:X}");
     }
 }
