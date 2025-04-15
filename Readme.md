@@ -1,6 +1,6 @@
 # RDP Gateway .Net (RDPGW.Net)
 ![GitHub License](https://img.shields.io/github/license/mkenfenheuer/rdpgw.net)
- ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mkenfenheuer/rdpgw.net/dotnet.yml) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/mkenfenheuer/rdpgw.net/main) ![NuGet Version](https://img.shields.io/nuget/v/RDPGW) ![NuGet Downloads](https://img.shields.io/nuget/dt/RDPGW)
+ ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mkenfenheuer/rdpgw.net/dotnet.yml) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/mkenfenheuer/rdpgw.net/main) ![NuGet Version](https://img.shields.io/nuget/v/RDPGW) ![NuGet Downloads](https://img.shields.io/nuget/dt/RDPGW) [![codecov](https://codecov.io/github/mKenfenheuer/rdpgw.net/branch/main/graph/badge.svg?token=ZON2D3YG89)](https://codecov.io/github/mKenfenheuer/rdpgw.net)
 
 
 
