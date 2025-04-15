@@ -1,6 +1,7 @@
 using System.Text;
 using RDPGW.AspNetCore;
 using RDPGW.Extensions;
+using RDPGW.Protocol;
 
 namespace Example;
 
@@ -9,6 +10,16 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        var packet = (HTTP_TUNNEL_AUTH_PACKET)HTTP_PACKET.FromBytes(Convert.FromHexString("06000000320000000000260061006E0079006400650076006900630065002E0061006E007900770068006500720065000000"));
+
+        packet.StatementOfHealth = new HTTP_BYTE_BLOB();
+        packet.StatementOfHealth.Data = [0x01, 0x02, 0x03, 0x04];
+
+        var bytes = Convert.ToHexString(packet.ToBytes()).Replace("-", "");
+
+        var packet2 = (HTTP_TUNNEL_AUTH_PACKET)HTTP_PACKET.FromBytes(packet.ToBytes());
+
+
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
@@ -22,7 +33,7 @@ public class Program
         builder.Services.AddSingleton<IRDPGWAuthorizationHandler, AuthorizationHandler>();
 
         var app = builder.Build();
-        
+
         app.UseRDPGW();
 
         // Configure the HTTP request pipeline.

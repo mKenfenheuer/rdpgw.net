@@ -45,7 +45,7 @@ public class HTTP_CHANNEL_PACKET_RESPONSE : HTTP_PACKET
         ErrorCode = BitConverter.ToUInt32(data.Take(4).ToArray());
         FieldsPresent = (HTTP_CHANNEL_RESPONSE_FIELDS_PRESENT_FLAGS)BitConverter.ToUInt16(data.Skip(4).Take(2).ToArray());
 
-        int skip = 16;
+        int skip = 8;
 
         // Parse the optional Channel ID if present.
         if ((FieldsPresent & HTTP_CHANNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_CHANNEL_RESPONSE_FIELD_CHANNELID) != 0)
@@ -80,6 +80,15 @@ public class HTTP_CHANNEL_PACKET_RESPONSE : HTTP_PACKET
     /// </summary>
     public override ArraySegment<byte> DataToBytes()
     {
+        // Calculate FieldsPresent based on the optional fields.
+        FieldsPresent = 0;
+        if (ChannelId != null)
+            FieldsPresent |= HTTP_CHANNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_CHANNEL_RESPONSE_FIELD_CHANNELID;
+        if (UDPPort != null)
+            FieldsPresent |= HTTP_CHANNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_CHANNEL_RESPONSE_FIELD_UDPPORT;
+        if (AuthnCookie != null)
+            FieldsPresent |= HTTP_CHANNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_CHANNEL_RESPONSE_FIELD_AUTHNCOOKIE;
+
         // Initialize the byte list with the error code and fields present flags.
         List<byte> bytes =
         [
@@ -90,19 +99,19 @@ public class HTTP_CHANNEL_PACKET_RESPONSE : HTTP_PACKET
         ];
 
         // Add the optional Channel ID to the byte list if present.
-        if ((FieldsPresent & HTTP_CHANNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_CHANNEL_RESPONSE_FIELD_CHANNELID) != 0 && ChannelId != null)
+        if (ChannelId != null)
         {
             bytes.AddRange(BitConverter.GetBytes((uint)ChannelId));
         }
 
         // Add the optional UDP port to the byte list if present.
-        if ((FieldsPresent & HTTP_CHANNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_CHANNEL_RESPONSE_FIELD_UDPPORT) != 0 && UDPPort != null)
+        if (UDPPort != null)
         {
             bytes.AddRange(BitConverter.GetBytes((ushort)UDPPort));
         }
 
         // Add the optional authentication cookie to the byte list if present.
-        if ((FieldsPresent & HTTP_CHANNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_CHANNEL_RESPONSE_FIELD_AUTHNCOOKIE) != 0 && AuthnCookie != null)
+        if (AuthnCookie != null)
         {
             bytes.AddRange(AuthnCookie.GetBytes());
         }

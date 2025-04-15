@@ -20,7 +20,7 @@ public class HTTP_UNICODE_STRING
     /// <summary>
     /// Gets the total length of the structure, including the length field.
     /// </summary>
-    public int TotalLength => Length + 4;
+    public int TotalLength => Length + 2;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_UNICODE_STRING"/> class from a byte array.
@@ -53,6 +53,8 @@ public class HTTP_UNICODE_STRING
     /// <returns>A byte array representing the Unicode string.</returns>
     public ArraySegment<byte> GetBytes()
     {
+        // Calculate the byte count of the string in Unicode encoding.
+        Length = (ushort)Encoding.Unicode.GetByteCount(String);
         // Combine the length and string bytes into a single array.
         List<byte> bytes =
         [

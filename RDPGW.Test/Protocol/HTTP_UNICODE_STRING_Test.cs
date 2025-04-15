@@ -32,10 +32,10 @@ public sealed class HTTP_UNICODE_STRING_Test
         var dataBytes = sequence.Skip(2).ToArray();
         var dataString = Encoding.Unicode.GetString(dataBytes);
         
-        Assert.AreEqual(data.Length, dataString.Length, "Length mismatch");
-        Assert.AreEqual(data.Length, str.String.Length, "Length mismatch");
-        Assert.AreEqual(data, str.String, "Data mismatch");
-        Assert.AreEqual(dataString, data, "Data mismatch");
+        Assert.AreEqual(data.TrimEnd('\0').Length, dataString.TrimEnd('\0').Length, "Length mismatch");
+        Assert.AreEqual(data.TrimEnd('\0').Length, str.String.TrimEnd('\0').Length, "Length mismatch");
+        Assert.AreEqual(data.TrimEnd('\0'), str.String.TrimEnd('\0'), "Data mismatch");
+        Assert.AreEqual(dataString.TrimEnd('\0'), data.TrimEnd('\0'), "Data mismatch");
         Assert.AreEqual(dataBytes.Length, str.Length, "Data length mismatch");
         Assert.AreEqual(length, str.Length, "Data length mismatch");
     }

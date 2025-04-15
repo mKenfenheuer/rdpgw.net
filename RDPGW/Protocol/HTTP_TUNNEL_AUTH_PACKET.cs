@@ -53,6 +53,13 @@ public class HTTP_TUNNEL_AUTH_PACKET : HTTP_PACKET
     /// <returns>A byte array representing the packet data.</returns>
     public override ArraySegment<byte> DataToBytes()
     {
+        // Set the FieldsPresent flags to include the SOH field if present.
+        FieldsPresent = 0;
+        if (StatementOfHealth != null)
+        {
+            FieldsPresent |= HTTP_TUNNEL_AUTH_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_AUTH_FIELD_SOH;
+        }
+
         // Initialize a list to hold the byte data.
         List<byte> bytes =
         [
@@ -63,7 +70,7 @@ public class HTTP_TUNNEL_AUTH_PACKET : HTTP_PACKET
         ];
 
         // Add the Statement of Health (SOH) field if present.
-        if ((FieldsPresent & HTTP_TUNNEL_AUTH_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_AUTH_FIELD_SOH) != 0 && StatementOfHealth != null)
+        if (StatementOfHealth != null)
         {
             bytes.AddRange(StatementOfHealth.GetBytes());
         }
