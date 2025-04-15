@@ -10,6 +10,5 @@
             "request": "launch",
             "projectPath": "${workspaceFolder}/Example/Example.csproj"
         }
-
     ]
 }

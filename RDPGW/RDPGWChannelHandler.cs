@@ -26,11 +26,18 @@ public class RDPGWChannelHandler
     {
         while (true)
         {
-            // Read a data packet from the input channel.
-            var packet = await _in.ReadDataPacket();
+            try
+            {
+                // Read a data packet from the input channel.
+                var packet = await _in.ReadDataPacket();
 
-            // Send the data packet to the output channel.
-            await _out.SendDataPacket(packet);
+                // Send the data packet to the output channel.
+                await _out.SendDataPacket(packet);
+            }
+            catch
+            {
+                break;
+            }
         }
     }
 }
