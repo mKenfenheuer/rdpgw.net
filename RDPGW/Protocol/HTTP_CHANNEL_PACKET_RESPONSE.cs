@@ -5,32 +5,32 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents an HTTP channel packet response.
 /// </summary>
-internal class HTTP_CHANNEL_PACKET_RESPONSE : HTTP_PACKET
+public class HTTP_CHANNEL_PACKET_RESPONSE : HTTP_PACKET
 {
     /// <summary>
     /// Gets or sets the error code of the response.
     /// </summary>
-    internal uint ErrorCode { get; set; }
+    public uint ErrorCode { get; set; }
 
     /// <summary>
     /// Gets or sets the flags indicating which fields are present in the response.
     /// </summary>
-    internal HTTP_CHANNEL_RESPONSE_FIELDS_PRESENT_FLAGS FieldsPresent { get; set; }
+    public HTTP_CHANNEL_RESPONSE_FIELDS_PRESENT_FLAGS FieldsPresent { get; set; }
 
     /// <summary>
     /// Gets or sets the optional Channel ID.
     /// </summary>
-    internal uint? ChannelId { get; set; }
+    public uint? ChannelId { get; set; }
 
     /// <summary>
     /// Gets or sets the optional UDP port.
     /// </summary>
-    internal ushort? UDPPort { get; set; }
+    public ushort? UDPPort { get; set; }
 
     /// <summary>
     /// Gets or sets the optional authentication cookie.
     /// </summary>
-    internal HTTP_BYTE_BLOB? AuthnCookie { get; set; }
+    public HTTP_BYTE_BLOB? AuthnCookie { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_CHANNEL_PACKET_RESPONSE"/> class with a header and data.
@@ -38,8 +38,8 @@ internal class HTTP_CHANNEL_PACKET_RESPONSE : HTTP_PACKET
     public HTTP_CHANNEL_PACKET_RESPONSE(HTTP_PACKET_HEADER header, ArraySegment<byte> data) : base(header)
     {
         // Validate the minimum data length.
-        if (data.Count < 16)
-            throw new Exception($"HTTP_CHANNEL_PACKET_RESPONSE data byte count mismatch. Expected at least 16 bytes, got {data.Count}");
+        if (data.Count < 8)
+            throw new Exception($"HTTP_CHANNEL_PACKET_RESPONSE data byte count mismatch. Expected at least 8 bytes, got {data.Count}");
 
         // Parse the error code and fields present flags.
         ErrorCode = BitConverter.ToUInt32(data.Take(4).ToArray());
@@ -78,7 +78,7 @@ internal class HTTP_CHANNEL_PACKET_RESPONSE : HTTP_PACKET
     /// <summary>
     /// Converts the channel packet response to a byte array segment.
     /// </summary>
-    internal override ArraySegment<byte> DataToBytes()
+    public override ArraySegment<byte> DataToBytes()
     {
         // Initialize the byte list with the error code and fields present flags.
         List<byte> bytes =

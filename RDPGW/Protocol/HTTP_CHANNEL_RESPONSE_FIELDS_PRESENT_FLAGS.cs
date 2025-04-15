@@ -3,7 +3,7 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Flags indicating which fields are present in an HTTP channel response.
 /// </summary>
-internal enum HTTP_CHANNEL_RESPONSE_FIELDS_PRESENT_FLAGS : ushort
+public enum HTTP_CHANNEL_RESPONSE_FIELDS_PRESENT_FLAGS : ushort
 {
     /// <summary>
     /// Indicates that the Channel ID field is present.

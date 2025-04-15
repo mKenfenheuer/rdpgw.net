@@ -5,47 +5,47 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents an HTTP tunnel response packet.
 /// </summary>
-internal class HTTP_TUNNEL_RESPONSE : HTTP_PACKET
+public class HTTP_TUNNEL_RESPONSE : HTTP_PACKET
 {
     /// <summary>
     /// Gets or sets the server version.
     /// </summary>
-    internal ushort ServerVersion { get; set; }
+    public ushort ServerVersion { get; set; }
 
     /// <summary>
     /// Gets or sets the status code of the response.
     /// </summary>
-    internal uint StatusCode { get; set; }
+    public uint StatusCode { get; set; }
 
     /// <summary>
     /// Gets or sets the flags indicating which fields are present.
     /// </summary>
-    internal HTTP_TUNNEL_RESPONSE_FIELDS_PRESENT_FLAGS FieldsPresent { get; set; }
+    public HTTP_TUNNEL_RESPONSE_FIELDS_PRESENT_FLAGS FieldsPresent { get; set; }
 
     /// <summary>
     /// Gets or sets the tunnel ID, if present.
     /// </summary>
-    internal uint? TunnelId { get; set; }
+    public uint? TunnelId { get; set; }
 
     /// <summary>
     /// Gets or sets the capability flags, if present.
     /// </summary>
-    internal HTTP_CAPABILITY_TYPE? CapabilityFlags { get; set; }
+    public HTTP_CAPABILITY_TYPE? CapabilityFlags { get; set; }
 
     /// <summary>
     /// Gets or sets the nonce, if present.
     /// </summary>
-    internal Guid? Nonce { get; set; }
+    public Guid? Nonce { get; set; }
 
     /// <summary>
     /// Gets or sets the server certificate, if present.
     /// </summary>
-    internal HTTP_UNICODE_STRING? ServerCertificate { get; set; }
+    public HTTP_UNICODE_STRING? ServerCertificate { get; set; }
 
     /// <summary>
     /// Gets or sets the consent message, if present.
     /// </summary>
-    internal HTTP_UNICODE_STRING? ConsentMessage { get; set; }
+    public HTTP_UNICODE_STRING? ConsentMessage { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_TUNNEL_RESPONSE"/> class from a header and data.
@@ -104,7 +104,7 @@ internal class HTTP_TUNNEL_RESPONSE : HTTP_PACKET
     /// Converts the response data to a byte array.
     /// </summary>
     /// <returns>A byte array representing the response data.</returns>
-    internal override ArraySegment<byte> DataToBytes()
+    public override ArraySegment<byte> DataToBytes()
     {
         // Combine the fixed fields into a byte array.
         List<byte> bytes =

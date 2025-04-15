@@ -5,22 +5,22 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents a Unicode string used in HTTP communication.
 /// </summary>
-internal class HTTP_UNICODE_STRING
+public class HTTP_UNICODE_STRING
 {
     /// <summary>
     /// Gets or sets the length of the string in bytes.
     /// </summary>
-    internal ushort Length { get; set; }
+    public ushort Length { get; set; }
 
     /// <summary>
     /// Gets or sets the string value.
     /// </summary>
-    internal string String { get; set; }
+    public string String { get; set; }
 
     /// <summary>
     /// Gets the total length of the structure, including the length field.
     /// </summary>
-    internal int TotalLength => Length + 4;
+    public int TotalLength => Length + 4;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_UNICODE_STRING"/> class from a byte array.
@@ -51,7 +51,7 @@ internal class HTTP_UNICODE_STRING
     /// Converts the Unicode string to a byte array.
     /// </summary>
     /// <returns>A byte array representing the Unicode string.</returns>
-    internal ArraySegment<byte> GetBytes()
+    public ArraySegment<byte> GetBytes()
     {
         // Combine the length and string bytes into a single array.
         List<byte> bytes =

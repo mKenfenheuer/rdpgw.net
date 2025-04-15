@@ -3,13 +3,13 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents the header of an HTTP packet.
 /// </summary>
-internal class HTTP_PACKET_HEADER
+public class HTTP_PACKET_HEADER
 {
     /// <summary>Gets or sets the type of the packet.</summary>
-    internal HTTP_PACKET_TYPE PacketType { get; set; }
+    public HTTP_PACKET_TYPE PacketType { get; set; }
 
     /// <summary>Gets or sets the length of the packet.</summary>
-    internal uint PacketLength { get; set; }
+    public uint PacketLength { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_PACKET_HEADER"/> class from raw data.
@@ -37,7 +37,7 @@ internal class HTTP_PACKET_HEADER
     /// Converts the packet header to a byte array.
     /// </summary>
     /// <returns>A byte array representing the packet header.</returns>
-    internal ArraySegment<byte> ToBytes()
+    public ArraySegment<byte> ToBytes()
     {
         // Construct the byte array for the header.
         List<byte> bytes =

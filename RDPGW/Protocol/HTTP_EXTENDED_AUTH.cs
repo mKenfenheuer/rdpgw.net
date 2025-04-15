@@ -3,7 +3,7 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents the extended authentication methods supported by the protocol.
 /// </summary>
-internal enum HTTP_EXTENDED_AUTH : ushort
+public enum HTTP_EXTENDED_AUTH : ushort
 {
     /// <summary>No extended authentication.</summary>
     HTTP_EXTENDED_AUTH_NONE = 0x00,

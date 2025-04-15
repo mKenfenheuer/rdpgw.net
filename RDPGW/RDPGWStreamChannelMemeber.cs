@@ -5,7 +5,7 @@ namespace RDPGW;
 /// <summary>
 /// Represents a channel member that communicates over a stream.
 /// </summary>
-internal class RDPGWStreamChannelMemeber : IRRDPGWChannelMember {
+public class RDPGWStreamChannelMemeber : IRRDPGWChannelMember {
     private readonly Stream _stream;
 
     /// <summary>

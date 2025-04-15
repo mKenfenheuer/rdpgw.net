@@ -3,22 +3,22 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents an HTTP tunnel authentication packet.
 /// </summary>
-internal class HTTP_TUNNEL_AUTH_PACKET : HTTP_PACKET
+public class HTTP_TUNNEL_AUTH_PACKET : HTTP_PACKET
 {
     /// <summary>
     /// Flags indicating which fields are present in the packet.
     /// </summary>
-    internal HTTP_TUNNEL_AUTH_FIELDS_PRESENT_FLAGS FieldsPresent { get; set; }
+    public HTTP_TUNNEL_AUTH_FIELDS_PRESENT_FLAGS FieldsPresent { get; set; }
 
     /// <summary>
     /// The client name in the packet.
     /// </summary>
-    internal HTTP_UNICODE_STRING ClientName { get; set; }
+    public HTTP_UNICODE_STRING ClientName { get; set; }
 
     /// <summary>
     /// Optional Statement of Health (SOH) field.
     /// </summary>
-    internal HTTP_BYTE_BLOB? StatementOfHealth { get; set; }
+    public HTTP_BYTE_BLOB? StatementOfHealth { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_TUNNEL_AUTH_PACKET"/> class.
@@ -51,7 +51,7 @@ internal class HTTP_TUNNEL_AUTH_PACKET : HTTP_PACKET
     /// Converts the packet data to a byte array.
     /// </summary>
     /// <returns>A byte array representing the packet data.</returns>
-    internal override ArraySegment<byte> DataToBytes()
+    public override ArraySegment<byte> DataToBytes()
     {
         // Initialize a list to hold the byte data.
         List<byte> bytes =

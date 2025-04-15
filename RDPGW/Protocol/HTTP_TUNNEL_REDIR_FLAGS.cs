@@ -3,7 +3,7 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Flags controlling redirection settings for an HTTP tunnel.
 /// </summary>
-internal enum HTTP_TUNNEL_REDIR_FLAGS : uint
+public enum HTTP_TUNNEL_REDIR_FLAGS : uint
 {
     /// <summary>
     /// Enables all redirection types.

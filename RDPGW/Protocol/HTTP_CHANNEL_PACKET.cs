@@ -3,27 +3,27 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents an HTTP channel packet.
 /// </summary>
-internal class HTTP_CHANNEL_PACKET : HTTP_PACKET
+public class HTTP_CHANNEL_PACKET : HTTP_PACKET
 {
     /// <summary>
     /// Gets or sets the port associated with the channel.
     /// </summary>
-    internal ushort Port { get; set; }
+    public ushort Port { get; set; }
 
     /// <summary>
     /// Gets or sets the protocol associated with the channel.
     /// </summary>
-    internal ushort Protocol { get; set; }
+    public ushort Protocol { get; set; }
 
     /// <summary>
     /// Gets or sets the list of resources associated with the channel.
     /// </summary>
-    internal string[] Resources { get; set; }
+    public string[] Resources { get; set; }
 
     /// <summary>
     /// Gets or sets the list of alternate resources associated with the channel.
     /// </summary>
-    internal string[] AltResources { get; set; }
+    public string[] AltResources { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_CHANNEL_PACKET"/> class with a header and data.
@@ -68,7 +68,7 @@ internal class HTTP_CHANNEL_PACKET : HTTP_PACKET
     /// <summary>
     /// Converts the channel packet to a byte array segment.
     /// </summary>
-    internal override ArraySegment<byte> DataToBytes()
+    public override ArraySegment<byte> DataToBytes()
     {
         // Initialize the byte list with resource and alternate resource counts, port, and protocol.
         List<byte> bytes =

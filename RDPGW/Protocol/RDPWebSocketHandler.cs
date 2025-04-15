@@ -8,7 +8,7 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Handles WebSocket connections for the RDP Gateway.
 /// </summary>
-internal class RDPWebSocketHandler : IRRDPGWChannelMember
+public class RDPWebSocketHandler : IRRDPGWChannelMember
 {
     private readonly WebSocket _socket;
     private readonly CancellationTokenSource _cancellationTokenSource;
@@ -34,7 +34,7 @@ internal class RDPWebSocketHandler : IRRDPGWChannelMember
     /// </summary>
     /// <param name="count">The number of bytes to read.</param>
     /// <returns>A segment of bytes read from the WebSocket.</returns>
-    internal async Task<ArraySegment<byte>> ReadBytes(int count)
+    public async Task<ArraySegment<byte>> ReadBytes(int count)
     {
         List<byte> bytes = new List<byte>();
 
@@ -53,7 +53,7 @@ internal class RDPWebSocketHandler : IRRDPGWChannelMember
     /// Reads an HTTP packet from the WebSocket connection.
     /// </summary>
     /// <returns>The HTTP packet read from the connection.</returns>
-    internal async Task<HTTP_PACKET> ReadPacket()
+    public async Task<HTTP_PACKET> ReadPacket()
     {
         // Read the packet header (8 bytes).
         var headerBytes = await ReadBytes(8);
@@ -69,7 +69,7 @@ internal class RDPWebSocketHandler : IRRDPGWChannelMember
     /// Sends an HTTP packet over the WebSocket connection.
     /// </summary>
     /// <param name="packet">The HTTP packet to send.</param>
-    internal async Task SendPacket(HTTP_PACKET packet)
+    public async Task SendPacket(HTTP_PACKET packet)
     {
         await _socket.SendAsync(packet.ToBytes(), WebSocketMessageType.Binary, true, _cancellationTokenSource.Token);
     }
@@ -77,7 +77,7 @@ internal class RDPWebSocketHandler : IRRDPGWChannelMember
     /// <summary>
     /// Handles the WebSocket connection, including handshake, tunnel, and channel setup.
     /// </summary>
-    internal async Task HandleConnection()
+    public async Task HandleConnection()
     {
         // Perform the handshake process.
         var handshakeRequest = (HTTP_HANDSHAKE_REQUEST_PACKET)await ReadPacket();

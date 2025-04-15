@@ -3,12 +3,12 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents an HTTP data packet.
 /// </summary>
-internal class HTTP_DATA_PACKET : HTTP_PACKET
+public class HTTP_DATA_PACKET : HTTP_PACKET
 {
     /// <summary>
     /// Gets or sets the data blob contained in the packet.
     /// </summary>
-    internal HTTP_BYTE_BLOB Data { get; set; }
+    public HTTP_BYTE_BLOB Data { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_DATA_PACKET"/> class with a header and data.
@@ -33,13 +33,13 @@ internal class HTTP_DATA_PACKET : HTTP_PACKET
     /// <summary>
     /// Converts the data blob to a byte array segment.
     /// </summary>
-    internal override ArraySegment<byte> DataToBytes() => Data.GetBytes();
+    public override ArraySegment<byte> DataToBytes() => Data.GetBytes();
 }
 
 /// <summary>
 /// Represents an HTTP keep-alive packet.
 /// </summary>
-internal class HTTP_KEEPALIVE_PACKET : HTTP_PACKET
+public class HTTP_KEEPALIVE_PACKET : HTTP_PACKET
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_KEEPALIVE_PACKET"/> class with a header and data.
@@ -60,5 +60,5 @@ internal class HTTP_KEEPALIVE_PACKET : HTTP_PACKET
     /// <summary>
     /// Converts the keep-alive packet to a byte array segment.
     /// </summary>
-    internal override ArraySegment<byte> DataToBytes() => [];
+    public override ArraySegment<byte> DataToBytes() => [];
 }

@@ -3,22 +3,22 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents an HTTP byte blob with a length and data.
 /// </summary>
-internal class HTTP_BYTE_BLOB
+public class HTTP_BYTE_BLOB
 {
     /// <summary>
     /// Gets or sets the length of the data in bytes.
     /// </summary>
-    internal ushort Length { get; set; }
+    public ushort Length { get; set; }
 
     /// <summary>
     /// Gets or sets the data as a byte array.
     /// </summary>
-    internal byte[] Data { get; set; }
+    public byte[] Data { get; set; }
 
     /// <summary>
     /// Gets the total length of the blob, including the length field.
     /// </summary>
-    internal int TotalLength => Length + 4;
+    public int TotalLength => Length + 4;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_BYTE_BLOB"/> class
@@ -49,7 +49,7 @@ internal class HTTP_BYTE_BLOB
     /// Converts the blob into a byte array segment.
     /// </summary>
     /// <returns>A byte array segment representing the blob.</returns>
-    internal ArraySegment<byte> GetBytes()
+    public ArraySegment<byte> GetBytes()
     {
         // Update the length based on the current data size.
         Length = (ushort)Data.Count();

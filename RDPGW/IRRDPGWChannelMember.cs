@@ -5,7 +5,7 @@ namespace RDPGW;
 /// <summary>
 /// Represents a member of an RDPGW channel that can read and send data packets.
 /// </summary>
-internal interface IRRDPGWChannelMember
+public interface IRRDPGWChannelMember
 {
     /// <summary>
     /// Reads a data packet from the channel.

@@ -3,7 +3,7 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents the HTTP capability types supported by the protocol.
 /// </summary>
-internal enum HTTP_CAPABILITY_TYPE : uint
+public enum HTTP_CAPABILITY_TYPE : uint
 {
     /// <summary>
     /// Capability for quarantine state of health (SOH).

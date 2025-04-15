@@ -3,27 +3,27 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents an HTTP tunnel packet, which includes capability flags, fields, and optional data.
 /// </summary>
-internal class HTTP_TUNNEL_PACKET : HTTP_PACKET
+public class HTTP_TUNNEL_PACKET : HTTP_PACKET
 {
     /// <summary>
     /// Gets or sets the capability flags for the tunnel.
     /// </summary>
-    internal HTTP_CAPABILITY_TYPE CapabilityFlags { get; set; }
+    public HTTP_CAPABILITY_TYPE CapabilityFlags { get; set; }
 
     /// <summary>
     /// Gets or sets the flags indicating which fields are present in the packet.
     /// </summary>
-    internal HTTP_TUNNEL_PACKET_FIELDS_PRESENT_FLAGS FieldsPresent { get; set; }
+    public HTTP_TUNNEL_PACKET_FIELDS_PRESENT_FLAGS FieldsPresent { get; set; }
 
     /// <summary>
     /// Gets or sets the reauthentication context, if present.
     /// </summary>
-    internal byte[]? ReauthContext { get; set; }
+    public byte[]? ReauthContext { get; set; }
 
     /// <summary>
     /// Gets or sets the PAA (Pre-Authentication Access) cookie, if present.
     /// </summary>
-    internal HTTP_BYTE_BLOB? PAACookie { get; set; }
+    public HTTP_BYTE_BLOB? PAACookie { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_TUNNEL_PACKET"/> class.
@@ -63,7 +63,7 @@ internal class HTTP_TUNNEL_PACKET : HTTP_PACKET
     /// Converts the packet data to a byte array.
     /// </summary>
     /// <returns>A byte array representing the packet data.</returns>
-    internal override ArraySegment<byte> DataToBytes()
+    public override ArraySegment<byte> DataToBytes()
     {
         // Initialize a list to hold the serialized data.
         List<byte> bytes =

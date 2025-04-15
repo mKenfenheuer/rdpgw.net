@@ -3,32 +3,32 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents an HTTP tunnel authentication response packet.
 /// </summary>
-internal class HTTP_TUNNEL_AUTH_RESPONSE : HTTP_PACKET
+public class HTTP_TUNNEL_AUTH_RESPONSE : HTTP_PACKET
 {
     /// <summary>
     /// The error code of the response.
     /// </summary>
-    internal uint ErrorCode { get; set; }
+    public uint ErrorCode { get; set; }
 
     /// <summary>
     /// Flags indicating which fields are present in the response.
     /// </summary>
-    internal HTTP_TUNNEL_AUTH_RESPONSE_FIELDS_PRESENT_FLAGS FieldsPresent { get; set; }
+    public HTTP_TUNNEL_AUTH_RESPONSE_FIELDS_PRESENT_FLAGS FieldsPresent { get; set; }
 
     /// <summary>
     /// Optional redirection flags.
     /// </summary>
-    internal HTTP_TUNNEL_REDIR_FLAGS? RedirectionFlags { get; set; }
+    public HTTP_TUNNEL_REDIR_FLAGS? RedirectionFlags { get; set; }
 
     /// <summary>
     /// Optional idle timeout value.
     /// </summary>
-    internal uint? IdleTimeout { get; set; }
+    public uint? IdleTimeout { get; set; }
 
     /// <summary>
     /// Optional Statement of Health (SOH) response.
     /// </summary>
-    internal HTTP_BYTE_BLOB? StatementOfHealthResponse { get; set; }
+    public HTTP_BYTE_BLOB? StatementOfHealthResponse { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_TUNNEL_AUTH_RESPONSE"/> class.
@@ -82,7 +82,7 @@ internal class HTTP_TUNNEL_AUTH_RESPONSE : HTTP_PACKET
     /// Converts the packet data to a byte array.
     /// </summary>
     /// <returns>A byte array representing the packet data.</returns>
-    internal override ArraySegment<byte> DataToBytes()
+    public override ArraySegment<byte> DataToBytes()
     {
         // Initialize a list to hold the byte data.
         List<byte> bytes =

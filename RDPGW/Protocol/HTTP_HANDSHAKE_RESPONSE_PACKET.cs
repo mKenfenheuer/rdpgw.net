@@ -3,22 +3,22 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents an HTTP handshake response packet.
 /// </summary>
-internal class HTTP_HANDSHAKE_RESPONSE_PACKET : HTTP_PACKET
+public class HTTP_HANDSHAKE_RESPONSE_PACKET : HTTP_PACKET
 {
     /// <summary>Gets or sets the error code of the response.</summary>
-    internal uint ErrorCode { get; set; }
+    public uint ErrorCode { get; set; }
 
     /// <summary>Gets or sets the major version of the protocol.</summary>
-    internal byte VersionMajor { get; set; }
+    public byte VersionMajor { get; set; }
 
     /// <summary>Gets or sets the minor version of the protocol.</summary>
-    internal byte VersionMinor { get; set; }
+    public byte VersionMinor { get; set; }
 
     /// <summary>Gets or sets the server version.</summary>
-    internal ushort ServerVersion { get; set; }
+    public ushort ServerVersion { get; set; }
 
     /// <summary>Gets or sets the extended authentication method.</summary>
-    internal HTTP_EXTENDED_AUTH ExtendedAuth { get; set; }
+    public HTTP_EXTENDED_AUTH ExtendedAuth { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_HANDSHAKE_RESPONSE_PACKET"/> class from raw data.
@@ -49,7 +49,7 @@ internal class HTTP_HANDSHAKE_RESPONSE_PACKET : HTTP_PACKET
     /// Converts the packet data to a byte array.
     /// </summary>
     /// <returns>A byte array representing the packet data.</returns>
-    internal override ArraySegment<byte> DataToBytes()
+    public override ArraySegment<byte> DataToBytes()
     {
         // Construct the byte array for the packet data.
         List<byte> bytes =

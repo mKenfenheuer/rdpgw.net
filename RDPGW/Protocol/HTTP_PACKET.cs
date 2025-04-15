@@ -3,18 +3,18 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents an abstract HTTP packet with a header and data.
 /// </summary>
-internal abstract class HTTP_PACKET
+public abstract class HTTP_PACKET
 {
     /// <summary>
     /// Gets or sets the header of the HTTP packet.
     /// </summary>
-    internal HTTP_PACKET_HEADER Header { get; set; }
+    public HTTP_PACKET_HEADER Header { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_PACKET"/> class.
     /// </summary>
     /// <param name="header">The HTTP packet header.</param>
-    internal HTTP_PACKET(HTTP_PACKET_HEADER header)
+    public HTTP_PACKET(HTTP_PACKET_HEADER header)
     {
         Header = header;
     }
@@ -23,13 +23,13 @@ internal abstract class HTTP_PACKET
     /// Converts the packet data to a byte array segment.
     /// </summary>
     /// <returns>A byte array segment representing the packet data.</returns>
-    internal abstract ArraySegment<byte> DataToBytes();
+    public abstract ArraySegment<byte> DataToBytes();
 
     /// <summary>
     /// Converts the entire packet (header + data) to a byte array segment.
     /// </summary>
     /// <returns>A byte array segment representing the entire packet.</returns>
-    internal ArraySegment<byte> ToBytes()
+    public ArraySegment<byte> ToBytes()
     {
         // Convert the data portion of the packet to bytes.
         var data = DataToBytes();
@@ -73,7 +73,7 @@ internal abstract class HTTP_PACKET
             case HTTP_PACKET_TYPE.PKT_TYPE_TUNNEL_CREATE:
                 return new HTTP_TUNNEL_PACKET(header, packetBytes);
             case HTTP_PACKET_TYPE.PKT_TYPE_TUNNEL_RESPONSE:
-                return new HTTP_TUNNEL_AUTH_RESPONSE(header, packetBytes);
+                return new HTTP_TUNNEL_RESPONSE(header, packetBytes);
             case HTTP_PACKET_TYPE.PKT_TYPE_DATA:
                 return new HTTP_DATA_PACKET(header, packetBytes);
             case HTTP_PACKET_TYPE.PKT_TYPE_KEEPALIVE:

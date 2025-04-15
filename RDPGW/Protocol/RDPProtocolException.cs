@@ -2,7 +2,7 @@
 /// Represents an exception specific to the RDP protocol.
 /// </summary>
 [Serializable]
-internal class RDPProtocolException : Exception
+public class RDPProtocolException : Exception
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="RDPProtocolException"/> class.

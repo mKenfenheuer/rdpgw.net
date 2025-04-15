@@ -3,7 +3,7 @@ namespace RDPGW.Protocol;
 /// <summary>
 /// Represents the types of HTTP packets used in the protocol.
 /// </summary>
-internal enum HTTP_PACKET_TYPE : ushort
+public enum HTTP_PACKET_TYPE : ushort
 {
     /// <summary>Handshake request packet.</summary>
     PKT_TYPE_HANDSHAKE_REQUEST = 0x1,

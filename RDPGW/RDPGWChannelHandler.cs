@@ -3,7 +3,7 @@ namespace RDPGW;
 /// <summary>
 /// Handles the communication between two channel members.
 /// </summary>
-internal class RDPGWChannelHandler
+public class RDPGWChannelHandler
 {
     private readonly IRRDPGWChannelMember _in;
     private readonly IRRDPGWChannelMember _out;
@@ -22,7 +22,7 @@ internal class RDPGWChannelHandler
     /// <summary>
     /// Continuously handles data packets from the input channel and sends them to the output channel.
     /// </summary>
-    internal async Task HandleChannel()
+    public async Task HandleChannel()
     {
         while (true)
         {
