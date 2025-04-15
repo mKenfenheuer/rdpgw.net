@@ -84,6 +84,15 @@ public class HTTP_TUNNEL_AUTH_RESPONSE : HTTP_PACKET
     /// <returns>A byte array representing the packet data.</returns>
     public override ArraySegment<byte> DataToBytes()
     {
+        // Set FieldsPresent according to the properties that are set.
+        FieldsPresent = 0;
+        if (RedirectionFlags != null)
+            FieldsPresent |= HTTP_TUNNEL_AUTH_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_AUTH_RESPONSE_FIELD_REDIR_FLAGS;
+        if (IdleTimeout != null)
+            FieldsPresent |= HTTP_TUNNEL_AUTH_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_AUTH_RESPONSE_FIELD_IDLE_TIMEOUT;
+        if (StatementOfHealthResponse != null)
+            FieldsPresent |= HTTP_TUNNEL_AUTH_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_AUTH_RESPONSE_FIELD_SOH_RESPONSE;
+
         // Initialize a list to hold the byte data.
         List<byte> bytes =
         [
@@ -96,19 +105,19 @@ public class HTTP_TUNNEL_AUTH_RESPONSE : HTTP_PACKET
         ];
 
         // Add the redirection flags if present.
-        if ((FieldsPresent & HTTP_TUNNEL_AUTH_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_AUTH_RESPONSE_FIELD_REDIR_FLAGS) != 0 && RedirectionFlags != null)
+        if (RedirectionFlags != null)
         {
             bytes.AddRange(BitConverter.GetBytes((uint)RedirectionFlags));
         }
 
         // Add the idle timeout if present.
-        if ((FieldsPresent & HTTP_TUNNEL_AUTH_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_AUTH_RESPONSE_FIELD_IDLE_TIMEOUT) != 0 && IdleTimeout != null)
+        if (IdleTimeout != null)
         {
             bytes.AddRange(BitConverter.GetBytes((uint)IdleTimeout));
         }
 
         // Add the Statement of Health (SOH) response if present.
-        if ((FieldsPresent & HTTP_TUNNEL_AUTH_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_AUTH_RESPONSE_FIELD_SOH_RESPONSE) != 0 && StatementOfHealthResponse != null)
+        if (StatementOfHealthResponse != null)
         {
             bytes.AddRange(StatementOfHealthResponse.GetBytes());
         }
