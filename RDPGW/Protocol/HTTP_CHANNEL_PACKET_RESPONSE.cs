@@ -39,7 +39,7 @@ public class HTTP_CHANNEL_PACKET_RESPONSE : HTTP_PACKET
     {
         // Validate the minimum data length.
         if (data.Count < 8)
-            throw new Exception($"HTTP_CHANNEL_PACKET_RESPONSE data byte count mismatch. Expected at least 8 bytes, got {data.Count}");
+            throw new ArgumentException($"HTTP_CHANNEL_PACKET_RESPONSE data byte count mismatch. Expected at least 8 bytes, got {data.Count}");
 
         // Parse the error code and fields present flags.
         ErrorCode = BitConverter.ToUInt32(data.Take(4).ToArray());

@@ -29,7 +29,7 @@ public class HTTP_TUNNEL_AUTH_PACKET : HTTP_PACKET
     {
         // Ensure the data contains at least the minimum required bytes.
         if (data.Count < 13)
-            throw new Exception($"HTTP_TUNNEL_AUTH_PACKET data byte count mismatch. Expected at least 13 bytes, got {data.Count}");
+            throw new ArgumentException($"HTTP_TUNNEL_AUTH_PACKET data byte count mismatch. Expected at least 13 bytes, got {data.Count}");
 
         // Parse the fields present flags.
         FieldsPresent = (HTTP_TUNNEL_AUTH_FIELDS_PRESENT_FLAGS)BitConverter.ToUInt16(data.Take(2).ToArray());

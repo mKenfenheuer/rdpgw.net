@@ -28,7 +28,7 @@ public class HTTP_HANDSHAKE_RESPONSE_PACKET : HTTP_PACKET
     public HTTP_HANDSHAKE_RESPONSE_PACKET(HTTP_PACKET_HEADER header, ArraySegment<byte> data) : base(header)
     {
         if (data.Count != 10)
-            throw new Exception($"HTTP_HANDSHAKE_RESPONSE_PACKET data byte count mismatch. Expected 10 bytes, got {data.Count}");
+            throw new ArgumentException($"HTTP_HANDSHAKE_RESPONSE_PACKET data byte count mismatch. Expected 10 bytes, got {data.Count}");
 
         // Parse the fields from the raw data.
         ErrorCode = BitConverter.ToUInt32(data.Take(4).ToArray());

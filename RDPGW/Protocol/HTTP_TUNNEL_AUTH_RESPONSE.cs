@@ -39,7 +39,7 @@ public class HTTP_TUNNEL_AUTH_RESPONSE : HTTP_PACKET
     {
         // Ensure the data contains at least the minimum required bytes.
         if (data.Count < 8)
-            throw new Exception($"HTTP_TUNNEL_AUTH_RESPONSE data byte count mismatch. Expected at least 8 bytes, got {data.Count}");
+            throw new ArgumentException($"HTTP_TUNNEL_AUTH_RESPONSE data byte count mismatch. Expected at least 8 bytes, got {data.Count}");
 
         // Parse the error code.
         ErrorCode = BitConverter.ToUInt32(data.Take(4).ToArray());

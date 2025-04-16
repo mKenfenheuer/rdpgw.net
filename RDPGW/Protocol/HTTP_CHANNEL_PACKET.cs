@@ -32,7 +32,7 @@ public class HTTP_CHANNEL_PACKET : HTTP_PACKET
     {
         // Validate the minimum data length.
         if (data.Count < 6)
-            throw new Exception($"HTTP_CHANNEL_PACKET data byte count mismatch. Expected at least 6 bytes, got {data.Count}");
+            throw new ArgumentException($"HTTP_CHANNEL_PACKET data byte count mismatch. Expected at least 6 bytes, got {data.Count}");
 
         // Parse the number of resources and alternate resources.
         var numResources = data[0];

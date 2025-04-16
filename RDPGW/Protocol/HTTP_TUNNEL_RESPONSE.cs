@@ -56,7 +56,7 @@ public class HTTP_TUNNEL_RESPONSE : HTTP_PACKET
     {
         // Validate the minimum data length.
         if (data.Count < 10)
-            throw new Exception($"HTTP_TUNNEL_RESPONSE data byte count mismatch. Expected at least 10 bytes, got {data.Count}");
+            throw new ArgumentException($"HTTP_TUNNEL_RESPONSE data byte count mismatch. Expected at least 10 bytes, got {data.Count}");
 
         // Parse the fixed fields.
         ServerVersion = BitConverter.ToUInt16(data.Take(2).ToArray());
@@ -106,6 +106,17 @@ public class HTTP_TUNNEL_RESPONSE : HTTP_PACKET
     /// <returns>A byte array representing the response data.</returns>
     public override ArraySegment<byte> DataToBytes()
     {
+        // Set FieldsPresent flags based on the optional fields.
+        FieldsPresent = 0;
+        if (TunnelId != null)
+            FieldsPresent |= HTTP_TUNNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_RESPONSE_FIELD_TUNNEL_ID;
+        if (CapabilityFlags != null)
+            FieldsPresent |= HTTP_TUNNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_RESPONSE_FIELD_CAPS;
+        if (Nonce != null && ServerCertificate != null)
+            FieldsPresent |= HTTP_TUNNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_RESPONSE_FIELD_SOH_REQ;
+        if (ConsentMessage != null)
+            FieldsPresent |= HTTP_TUNNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_RESPONSE_FIELD_CONSENT_MSG;
+
         // Combine the fixed fields into a byte array.
         List<byte> bytes =
         [
@@ -117,20 +128,20 @@ public class HTTP_TUNNEL_RESPONSE : HTTP_PACKET
         ];
 
         // Add optional fields based on the FieldsPresent flags.
-        if ((FieldsPresent & HTTP_TUNNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_RESPONSE_FIELD_TUNNEL_ID) != 0 && TunnelId != null)
+        if (TunnelId != null)
         {
             bytes.AddRange(BitConverter.GetBytes(TunnelId.Value));
         }
-        if ((FieldsPresent & HTTP_TUNNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_RESPONSE_FIELD_CAPS) != 0 && CapabilityFlags != null)
+        if (CapabilityFlags != null)
         {
             bytes.AddRange(BitConverter.GetBytes((uint)CapabilityFlags));
         }
-        if ((FieldsPresent & HTTP_TUNNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_RESPONSE_FIELD_SOH_REQ) != 0 && Nonce != null && ServerCertificate != null)
+        if (ServerCertificate != null && Nonce != null)
         {
             bytes.AddRange(MarshalExtensions.StructToArraySegment(Nonce));
             bytes.AddRange(ServerCertificate.GetBytes());
         }
-        if ((FieldsPresent & HTTP_TUNNEL_RESPONSE_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_RESPONSE_FIELD_CONSENT_MSG) != 0 && ConsentMessage != null)
+        if (ConsentMessage != null)
         {
             bytes.AddRange(ConsentMessage.GetBytes());
         }

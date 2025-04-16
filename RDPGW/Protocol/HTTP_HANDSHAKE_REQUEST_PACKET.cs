@@ -25,7 +25,7 @@ public class HTTP_HANDSHAKE_REQUEST_PACKET : HTTP_PACKET
     public HTTP_HANDSHAKE_REQUEST_PACKET(HTTP_PACKET_HEADER header, ArraySegment<byte> data) : base(header)
     {
         if (data.Count != 6)
-            throw new Exception($"HTTP_HANDSHAKE_REQUEST_PACKET data byte count mismatch. Expected 6 bytes, got {data.Count}");
+            throw new ArgumentException($"HTTP_HANDSHAKE_REQUEST_PACKET data byte count mismatch. Expected 6 bytes, got {data.Count}");
 
         // Parse the fields from the raw data.
         VersionMajor = data[0];

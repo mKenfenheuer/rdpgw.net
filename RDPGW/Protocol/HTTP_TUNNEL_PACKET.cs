@@ -35,7 +35,7 @@ public class HTTP_TUNNEL_PACKET : HTTP_PACKET
     {
         // Ensure the data contains at least 8 bytes for the mandatory fields.
         if (data.Count < 8)
-            throw new Exception($"HTTP_TUNNEL_PACKET data byte count mismatch. Expected at least 8 bytes, got {data.Count}");
+            throw new ArgumentException($"HTTP_TUNNEL_PACKET data byte count mismatch. Expected at least 8 bytes, got {data.Count}");
 
         // Parse the capability flags (4 bytes).
         CapabilityFlags = (HTTP_CAPABILITY_TYPE)BitConverter.ToUInt32(data.Take(4).ToArray());
@@ -65,6 +65,13 @@ public class HTTP_TUNNEL_PACKET : HTTP_PACKET
     /// <returns>A byte array representing the packet data.</returns>
     public override ArraySegment<byte> DataToBytes()
     {
+        // Set FieldsPresent to the flags indicating which fields are present.
+        FieldsPresent = 0;
+        if (ReauthContext != null)
+            FieldsPresent |= HTTP_TUNNEL_PACKET_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_PACKET_FIELD_REAUTH;
+        if (PAACookie != null)
+            FieldsPresent |= HTTP_TUNNEL_PACKET_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_PACKET_FIELD_PAA_COOKIE;
+
         // Initialize a list to hold the serialized data.
         List<byte> bytes =
         [
@@ -80,13 +87,13 @@ public class HTTP_TUNNEL_PACKET : HTTP_PACKET
         ];
 
         // Add the reauthentication context if present.
-        if ((FieldsPresent & HTTP_TUNNEL_PACKET_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_PACKET_FIELD_REAUTH) != 0 && ReauthContext != null)
+        if (ReauthContext != null)
         {
             bytes.AddRange(ReauthContext);
         }
 
         // Add the PAA cookie if present.
-        if ((FieldsPresent & HTTP_TUNNEL_PACKET_FIELDS_PRESENT_FLAGS.HTTP_TUNNEL_PACKET_FIELD_PAA_COOKIE) != 0 && PAACookie != null)
+        if (PAACookie != null)
         {
             bytes.AddRange(PAACookie.GetBytes());
         }
