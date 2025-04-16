@@ -79,71 +79,87 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
     /// </summary>
     public async Task HandleConnection()
     {
-        // Perform the handshake process.
-        var handshakeRequest = (HTTP_HANDSHAKE_REQUEST_PACKET)await ReadPacket();
-        HTTP_HANDSHAKE_RESPONSE_PACKET handshakeResponse = new HTTP_HANDSHAKE_RESPONSE_PACKET
+        try
         {
-            ServerVersion = handshakeRequest.ClientVersion,
-            VersionMajor = 0x1,
-            VersionMinor = handshakeRequest.VersionMinor,
-            ExtendedAuth = HTTP_EXTENDED_AUTH.HTTP_EXTENDED_AUTH_NONE,
-            ErrorCode = 0x0
-        };
-        await SendPacket(handshakeResponse);
+            // Perform the handshake process.
+            var handshakeRequest = (HTTP_HANDSHAKE_REQUEST_PACKET)await ReadPacket();
+            HTTP_HANDSHAKE_RESPONSE_PACKET handshakeResponse = new HTTP_HANDSHAKE_RESPONSE_PACKET
+            {
+                ServerVersion = handshakeRequest.ClientVersion,
+                VersionMajor = 0x1,
+                VersionMinor = handshakeRequest.VersionMinor,
+                ExtendedAuth = HTTP_EXTENDED_AUTH.HTTP_EXTENDED_AUTH_NONE,
+                ErrorCode = 0x0
+            };
+            await SendPacket(handshakeResponse);
 
-        // Handle tunnel request and response.
-        var tunnelRequest = (HTTP_TUNNEL_PACKET)await ReadPacket();
-        HTTP_TUNNEL_RESPONSE httpTunnelResponse = new HTTP_TUNNEL_RESPONSE
-        {
-            ServerVersion = 0x5
-        };
-        await SendPacket(httpTunnelResponse);
+            // Handle tunnel request and response.
+            var tunnelRequest = (HTTP_TUNNEL_PACKET)await ReadPacket();
+            HTTP_TUNNEL_RESPONSE httpTunnelResponse = new HTTP_TUNNEL_RESPONSE
+            {
+                ServerVersion = 0x5
+            };
+            await SendPacket(httpTunnelResponse);
 
-        // Handle tunnel authentication.
-        var tunnelAuthRequest = (HTTP_TUNNEL_AUTH_PACKET)await ReadPacket();
-        var tunnelAuthResponse = new HTTP_TUNNEL_AUTH_RESPONSE();
-        await SendPacket(tunnelAuthResponse);
+            // Handle tunnel authentication.
+            var tunnelAuthRequest = (HTTP_TUNNEL_AUTH_PACKET)await ReadPacket();
+            var tunnelAuthResponse = new HTTP_TUNNEL_AUTH_RESPONSE();
+            await SendPacket(tunnelAuthResponse);
 
-        // Handle channel request and response.
-        var channelRequest = (HTTP_CHANNEL_PACKET)await ReadPacket();
-        TcpClient? client = null;
+            // Handle channel request and response.
+            var channelRequest = (HTTP_CHANNEL_PACKET)await ReadPacket();
+            TcpClient? client = null;
 
-        // Attempt to connect to the requested resources.
-        foreach (var resource in channelRequest.Resources)
-        {
-            if (_authorizationHandler != null && _userId != null && !await _authorizationHandler.HandleUserAuthorization(_userId, resource))
-                break;
-            client = await TryConnectResource(resource, channelRequest.Port);
-            if (client != null)
-                break;
+            // Attempt to connect to the requested resources.
+            foreach (var resource in channelRequest.Resources)
+            {
+                if (_authorizationHandler != null && _userId != null && !await _authorizationHandler.HandleUserAuthorization(_userId, resource))
+                    break;
+                client = await TryConnectResource(resource, channelRequest.Port);
+                if (client != null)
+                    break;
+            }
+
+            // Attempt to connect to alternate resources if primary resources fail.
+            foreach (var resource in channelRequest.AltResources)
+            {
+                client = await TryConnectResource(resource, channelRequest.Port);
+                if (client != null)
+                    break;
+            }
+
+            // Send channel response.
+            var channelResponse = new HTTP_CHANNEL_PACKET_RESPONSE
+            {
+                ErrorCode = client == null ? (uint)0x800202 : 0x0,
+                ChannelId = 1
+            };
+            await SendPacket(channelResponse);
+
+            if (client == null)
+            {
+
+                await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationTokenSource.Token);
+                return;
+            }
+
+            // Set up channel handlers for data transfer.
+            var tcpClientChannelMember = new RDPGWTcpClientChannelMemeber(client);
+            var inHandler = new RDPGWChannelHandler(this, tcpClientChannelMember);
+            var outHandler = new RDPGWChannelHandler(tcpClientChannelMember, this);
+
+            Console.WriteLine("Handling Channel.");
+
+            // Handle bidirectional channel communication.
+            await Task.WhenAny([inHandler.HandleChannel(), outHandler.HandleChannel()]);
         }
-
-        // Attempt to connect to alternate resources if primary resources fail.
-        foreach (var resource in channelRequest.AltResources)
+        catch (Exception ex)
         {
-            client = await TryConnectResource(resource, channelRequest.Port);
-            if (client != null)
-                break;
-        }
-
-        // Send channel response.
-        var channelResponse = new HTTP_CHANNEL_PACKET_RESPONSE
-        {
-            ErrorCode = client == null ? (uint)0x800202 : 0x0,
-            ChannelId = 1
-        };
-        await SendPacket(channelResponse);
-
-        if (client == null)
+            await _socket.CloseAsync(WebSocketCloseStatus.InternalServerError, ex.Message, _cancellationTokenSource.Token);
             return;
+        }
 
-        // Set up channel handlers for data transfer.
-        var tcpClientChannelMember = new RDPGWTcpClientChannelMemeber(client);
-        var inHandler = new RDPGWChannelHandler(this, tcpClientChannelMember);
-        var outHandler = new RDPGWChannelHandler(tcpClientChannelMember, this);
-
-        // Handle bidirectional channel communication.
-        await Task.WhenAny([inHandler.HandleChannel(), outHandler.HandleChannel()]);
+        await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationTokenSource.Token);
     }
 
     /// <summary>
