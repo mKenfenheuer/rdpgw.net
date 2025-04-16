@@ -36,20 +36,18 @@ public class RDPGWMiddleware
     public Task InvokeAsync(HttpContext context)
     {
         // Check if the request is a WebSocket connection request for RDP Gateway.
-        var isConnectionRequest = (context.Request.Method == "RDG_OUT_DATA" || context.Request.Method == "RDG_IN_DATA") 
+        var isConnectionRequest = (context.Request.Method == "RDG_OUT_DATA" || context.Request.Method == "RDG_IN_DATA" || context.Request.Method == "GET") 
+                                  && context.Request.Path.StartsWithSegments("/remoteDesktopGateway")
                                   && context.Request.Headers.Connection == "Upgrade" 
                                   && context.Request.Headers.Upgrade == "websocket";
 
         if (isConnectionRequest)
         {
             // Log the incoming request method for debugging purposes.
-            _logger.LogDebug($"Handling incoming Request {context.Request.Method}");
+            _logger.LogDebug($"Handling incoming Request {context.Request.Method} {context.Request.Path}");
             // If the request is a WebSocket connection request, handle it.
             return HandleConnectionRequest(context);
         }
-
-        // Log a warning for unhandled requests.
-        _logger.LogWarning($"Unhandled Request: {context.Request.Method} {context.Request.Path}");
 
         // Pass the request to the next middleware in the pipeline.
         return _next.Invoke(context);
