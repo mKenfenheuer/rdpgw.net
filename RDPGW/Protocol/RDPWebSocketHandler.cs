@@ -14,6 +14,7 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly IRDPGWAuthorizationHandler? _authorizationHandler;
     private readonly string? _userId;
+    private readonly ILogger<RDPWebSocketHandler> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RDPWebSocketHandler"/> class.
@@ -21,12 +22,13 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
     /// <param name="socket">The WebSocket connection.</param>
     /// <param name="userId">The user ID associated with the connection.</param>
     /// <param name="authorizationHandler">The authorization handler for resource access.</param>
-    public RDPWebSocketHandler(WebSocket socket, string? userId, IRDPGWAuthorizationHandler? authorizationHandler)
+    public RDPWebSocketHandler(WebSocket socket, string? userId, IRDPGWAuthorizationHandler? authorizationHandler, ILogger<RDPWebSocketHandler> logger)
     {
         _socket = socket;
         _cancellationTokenSource = new CancellationTokenSource();
         _authorizationHandler = authorizationHandler;
         _userId = userId;
+        _logger = logger;
     }
 
     /// <summary>
@@ -92,6 +94,7 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
                 ErrorCode = 0x0
             };
             await SendPacket(handshakeResponse);
+            _logger.LogDebug("Handshake completed.");
 
             // Handle tunnel request and response.
             var tunnelRequest = (HTTP_TUNNEL_PACKET)await ReadPacket();
@@ -100,11 +103,13 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
                 ServerVersion = 0x5
             };
             await SendPacket(httpTunnelResponse);
+            _logger.LogDebug("Tunnel established.");
 
             // Handle tunnel authentication.
             var tunnelAuthRequest = (HTTP_TUNNEL_AUTH_PACKET)await ReadPacket();
             var tunnelAuthResponse = new HTTP_TUNNEL_AUTH_RESPONSE();
             await SendPacket(tunnelAuthResponse);
+            _logger.LogDebug("Tunnel authentication completed.");
 
             // Handle channel request and response.
             var channelRequest = (HTTP_CHANNEL_PACKET)await ReadPacket();
@@ -115,6 +120,7 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
             {
                 if (_authorizationHandler != null && _userId != null && !await _authorizationHandler.HandleUserAuthorization(_userId, resource))
                     break;
+                _logger.LogDebug($"Trying resource: {resource} on Port {channelRequest.Port}");
                 client = await TryConnectResource(resource, channelRequest.Port);
                 if (client != null)
                     break;
@@ -123,6 +129,9 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
             // Attempt to connect to alternate resources if primary resources fail.
             foreach (var resource in channelRequest.AltResources)
             {
+                if (_authorizationHandler != null && _userId != null && !await _authorizationHandler.HandleUserAuthorization(_userId, resource))
+                    break;
+                _logger.LogDebug($"Trying alternate resource: {resource} on Port {channelRequest.Port}");
                 client = await TryConnectResource(resource, channelRequest.Port);
                 if (client != null)
                     break;

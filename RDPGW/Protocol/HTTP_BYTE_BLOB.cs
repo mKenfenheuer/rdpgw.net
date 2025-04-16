@@ -18,7 +18,7 @@ public class HTTP_BYTE_BLOB
     /// <summary>
     /// Gets the total length of the blob, including the length field.
     /// </summary>
-    public int TotalLength => Length + 4;
+    public int TotalLength => Length + 2;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HTTP_BYTE_BLOB"/> class
