@@ -11,14 +11,24 @@ namespace RDPGW.Test;
 [TestClass]
 public class AspNetCore_Test
 {
-     [TestMethod]
+    private static int Port = 50000;
+
+    private static int GetPort()
+    {
+        return Port++;
+    }
+
+    [TestMethod]
     public async Task TestWebServerAuthFail()
     {
-        var builder = WebApplication.CreateBuilder([]); ;
+        var port = GetPort();
+        var baseUrl = $"localhost:{port}";
+
+        var builder = WebApplication.CreateBuilder([]);
 
         builder.WebHost.UseKestrel(options =>
         {
-            options.ListenLocalhost(50000);
+            options.ListenLocalhost(port);
         });
 
         // Add services to the container.
@@ -27,7 +37,7 @@ public class AspNetCore_Test
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddRDPGW();
 
-        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, AuthHandler>();
+        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, SuccessAuthHandler>();
         builder.Services.AddSingleton<IRDPGWAuthorizationHandler, SuccessAuthorizationHandler>();
 
         var app = builder.Build();
@@ -44,7 +54,7 @@ public class AspNetCore_Test
         await Task.Delay(1000);
 
         var client = new HttpClient();
-        var response = await client.GetAsync("http://localhost:50000/");
+        var response = await client.GetAsync($"http://{baseUrl}/");
 
         Assert.IsFalse(response.IsSuccessStatusCode, "Response was successful. Expected failure.");
         Assert.AreEqual(404, (int)response.StatusCode, "Expected 404 Not Found status code.");
@@ -52,7 +62,7 @@ public class AspNetCore_Test
         ClientWebSocket ws = new ClientWebSocket();
         try
         {
-            await ws.ConnectAsync(new Uri("ws://localhost:50000/remoteDesktopGateway"), CancellationToken.None);
+            await ws.ConnectAsync(new Uri($"ws://{baseUrl}/remoteDesktopGateway"), CancellationToken.None);
         }
         catch (Exception e)
         {
@@ -61,16 +71,20 @@ public class AspNetCore_Test
         }
 
         await app.StopAsync();
+        await app.DisposeAsync();
     }
 
     [TestMethod]
     public async Task TestWebServerNegotiateAuth()
     {
-        var builder = WebApplication.CreateBuilder([]); ;
+        var port = GetPort();
+        var baseUrl = $"localhost:{port}";
+
+        var builder = WebApplication.CreateBuilder([]);
 
         builder.WebHost.UseKestrel(options =>
         {
-            options.ListenLocalhost(50000);
+            options.ListenLocalhost(port);
         });
 
         // Add services to the container.
@@ -79,24 +93,23 @@ public class AspNetCore_Test
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddRDPGW();
 
-        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, AuthHandler>();
+        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, SuccessAuthHandler>();
         builder.Services.AddSingleton<IRDPGWAuthorizationHandler, SuccessAuthorizationHandler>();
 
         var app = builder.Build();
 
         app.UseRDPGW();
 
-
         app.UseHttpsRedirection();
 
         app.UseAuthorization();
 
-        var appTask = Task.Run(app.Run);
+        await app.StartAsync();
 
         await Task.Delay(1000);
 
         var client = new HttpClient();
-        var response = await client.GetAsync("http://localhost:50000/");
+        var response = await client.GetAsync($"http://{baseUrl}/");
 
         Assert.IsFalse(response.IsSuccessStatusCode, "Response was successful. Expected failure.");
         Assert.AreEqual(404, (int)response.StatusCode, "Expected 404 Not Found status code.");
@@ -105,7 +118,7 @@ public class AspNetCore_Test
         try
         {
             ws.Options.SetRequestHeader("Authorization", "Negotiate " + Convert.ToBase64String(Encoding.UTF8.GetBytes("user:password")));
-            await ws.ConnectAsync(new Uri("ws://localhost:50000/remoteDesktopGateway"), CancellationToken.None);
+            await ws.ConnectAsync(new Uri($"ws://{baseUrl}/remoteDesktopGateway"), CancellationToken.None);
         }
         catch 
         {
@@ -138,16 +151,22 @@ public class AspNetCore_Test
 
         await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
         Assert.IsTrue(ws.State == WebSocketState.Closed, "WebSocket is not closed.");
+
+        await app.StopAsync();
+        await app.DisposeAsync();
     }
 
     [TestMethod]
-    public async Task TestWebServerBasicAuth()
+    public async Task TestWebServerNegotiateAuthFail()
     {
-        var builder = WebApplication.CreateBuilder([]); ;
+        var port = GetPort();
+        var baseUrl = $"localhost:{port}";
+        
+        var builder = WebApplication.CreateBuilder([]);
 
         builder.WebHost.UseKestrel(options =>
         {
-            options.ListenLocalhost(50000);
+            options.ListenLocalhost(port);
         });
 
         // Add services to the container.
@@ -156,7 +175,7 @@ public class AspNetCore_Test
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddRDPGW();
 
-        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, AuthHandler>();
+        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, FailAuthHandler>();
         builder.Services.AddSingleton<IRDPGWAuthorizationHandler, SuccessAuthorizationHandler>();
 
         var app = builder.Build();
@@ -168,12 +187,69 @@ public class AspNetCore_Test
 
         app.UseAuthorization();
 
-        var appTask = Task.Run(app.Run);
+        await app.StartAsync();
 
         await Task.Delay(1000);
 
         var client = new HttpClient();
-        var response = await client.GetAsync("http://localhost:50000/");
+        var response = await client.GetAsync($"http://{baseUrl}/");
+
+        Assert.IsFalse(response.IsSuccessStatusCode, "Response was successful. Expected failure.");
+        Assert.AreEqual(404, (int)response.StatusCode, "Expected 404 Not Found status code.");
+
+        ClientWebSocket ws = new ClientWebSocket();
+        try
+        {
+            ws.Options.SetRequestHeader("Authorization", "Negotiate " + Convert.ToBase64String(Encoding.UTF8.GetBytes("user:password")));
+            await ws.ConnectAsync(new Uri($"ws://{baseUrl}/remoteDesktopGateway"), CancellationToken.None);
+        }
+        catch (Exception e)
+        {
+            Assert.IsTrue(e.Message.Contains("401"), "Expected 401 Unauthorized error.");
+            return;
+        }
+
+        await app.StopAsync();
+        await app.DisposeAsync();
+    }
+
+    [TestMethod]
+    public async Task TestWebServerBasicAuth()
+    {
+        var port = GetPort();
+        var baseUrl = $"localhost:{port}";
+        
+        var builder = WebApplication.CreateBuilder([]);
+
+        builder.WebHost.UseKestrel(options =>
+        {
+            options.ListenLocalhost(port);
+        });
+
+        // Add services to the container.
+        builder.Services.AddAuthorization();
+
+        // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+        builder.Services.AddRDPGW();
+
+        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, SuccessAuthHandler>();
+        builder.Services.AddSingleton<IRDPGWAuthorizationHandler, SuccessAuthorizationHandler>();
+
+        var app = builder.Build();
+
+        app.UseRDPGW();
+
+
+        app.UseHttpsRedirection();
+
+        app.UseAuthorization();
+
+        await app.StartAsync();
+
+        await Task.Delay(1000);
+
+        var client = new HttpClient();
+        var response = await client.GetAsync($"http://{baseUrl}/");
 
         Assert.IsFalse(response.IsSuccessStatusCode, "Response was successful. Expected failure.");
         Assert.AreEqual(404, (int)response.StatusCode, "Expected 404 Not Found status code.");
@@ -182,7 +258,7 @@ public class AspNetCore_Test
         try
         {
             ws.Options.SetRequestHeader("Authorization", "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("user:password")));
-            await ws.ConnectAsync(new Uri("ws://localhost:50000/remoteDesktopGateway"), CancellationToken.None);
+            await ws.ConnectAsync(new Uri($"ws://{baseUrl}/remoteDesktopGateway"), CancellationToken.None);
         }
         catch 
         {
@@ -215,16 +291,22 @@ public class AspNetCore_Test
 
         await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
         Assert.IsTrue(ws.State == WebSocketState.Closed, "WebSocket is not closed.");
+
+        await app.StopAsync();
+        await app.DisposeAsync();
     }
 
     [TestMethod]
-    public async Task TestWebServerDigestAuth()
+    public async Task TestWebServerBasicAuthFail()
     {
-        var builder = WebApplication.CreateBuilder([]); ;
+        var port = GetPort();
+        var baseUrl = $"localhost:{port}";
+        
+        var builder = WebApplication.CreateBuilder([]);
 
         builder.WebHost.UseKestrel(options =>
         {
-            options.ListenLocalhost(50000);
+            options.ListenLocalhost(port);
         });
 
         // Add services to the container.
@@ -233,7 +315,7 @@ public class AspNetCore_Test
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddRDPGW();
 
-        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, AuthHandler>();
+        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, FailAuthHandler>();
         builder.Services.AddSingleton<IRDPGWAuthorizationHandler, SuccessAuthorizationHandler>();
 
         var app = builder.Build();
@@ -245,12 +327,69 @@ public class AspNetCore_Test
 
         app.UseAuthorization();
 
-        var appTask = Task.Run(app.Run);
+        await app.StartAsync();
 
         await Task.Delay(1000);
 
         var client = new HttpClient();
-        var response = await client.GetAsync("http://localhost:50000/");
+        var response = await client.GetAsync($"http://{baseUrl}/");
+
+        Assert.IsFalse(response.IsSuccessStatusCode, "Response was successful. Expected failure.");
+        Assert.AreEqual(404, (int)response.StatusCode, "Expected 404 Not Found status code.");
+
+        ClientWebSocket ws = new ClientWebSocket();
+        try
+        {
+            ws.Options.SetRequestHeader("Authorization", "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("user:password")));
+            await ws.ConnectAsync(new Uri($"ws://{baseUrl}/remoteDesktopGateway"), CancellationToken.None);
+        }
+        catch (Exception e)
+        {
+            Assert.IsTrue(e.Message.Contains("401"), "Expected 401 Unauthorized error.");
+            return;
+        }
+
+        await app.StopAsync();
+        await app.DisposeAsync();
+    }
+
+    [TestMethod]
+    public async Task TestWebServerDigestAuth()
+    {
+        var port = GetPort();
+        var baseUrl = $"localhost:{port}";
+        
+        var builder = WebApplication.CreateBuilder([]);
+
+        builder.WebHost.UseKestrel(options =>
+        {
+            options.ListenLocalhost(port);
+        });
+
+        // Add services to the container.
+        builder.Services.AddAuthorization();
+
+        // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+        builder.Services.AddRDPGW();
+
+        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, SuccessAuthHandler>();
+        builder.Services.AddSingleton<IRDPGWAuthorizationHandler, SuccessAuthorizationHandler>();
+
+        var app = builder.Build();
+
+        app.UseRDPGW();
+
+
+        app.UseHttpsRedirection();
+
+        app.UseAuthorization();
+
+        await app.StartAsync();
+
+        await Task.Delay(1000);
+
+        var client = new HttpClient();
+        var response = await client.GetAsync($"http://{baseUrl}/");
 
         Assert.IsFalse(response.IsSuccessStatusCode, "Response was successful. Expected failure.");
         Assert.AreEqual(404, (int)response.StatusCode, "Expected 404 Not Found status code.");
@@ -259,7 +398,7 @@ public class AspNetCore_Test
         try
         {
             ws.Options.SetRequestHeader("Authorization", "Digest " + Convert.ToBase64String(Encoding.UTF8.GetBytes("user:password")));
-            await ws.ConnectAsync(new Uri("ws://localhost:50000/remoteDesktopGateway"), CancellationToken.None);
+            await ws.ConnectAsync(new Uri($"ws://{baseUrl}/remoteDesktopGateway"), CancellationToken.None);
         }
         catch 
         {
@@ -292,16 +431,22 @@ public class AspNetCore_Test
 
         await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
         Assert.IsTrue(ws.State == WebSocketState.Closed, "WebSocket is not closed.");
+
+        await app.StopAsync();
+        await app.DisposeAsync();
     }
 
     [TestMethod]
-    public async Task TestWebServerResourceAuthFail()
+    public async Task TestWebServerDigestAuthFail()
     {
-        var builder = WebApplication.CreateBuilder([]); ;
+        var port = GetPort();
+        var baseUrl = $"localhost:{port}";
+        
+        var builder = WebApplication.CreateBuilder([]);
 
         builder.WebHost.UseKestrel(options =>
         {
-            options.ListenLocalhost(50000);
+            options.ListenLocalhost(port);
         });
 
         // Add services to the container.
@@ -310,7 +455,64 @@ public class AspNetCore_Test
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddRDPGW();
 
-        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, AuthHandler>();
+        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, FailAuthHandler>();
+        builder.Services.AddSingleton<IRDPGWAuthorizationHandler, SuccessAuthorizationHandler>();
+
+        var app = builder.Build();
+
+        app.UseRDPGW();
+
+
+        app.UseHttpsRedirection();
+
+        app.UseAuthorization();
+
+        await app.StartAsync();
+
+        await Task.Delay(1000);
+
+        var client = new HttpClient();
+        var response = await client.GetAsync($"http://{baseUrl}/");
+
+        Assert.IsFalse(response.IsSuccessStatusCode, "Response was successful. Expected failure.");
+        Assert.AreEqual(404, (int)response.StatusCode, "Expected 404 Not Found status code.");
+
+        ClientWebSocket ws = new ClientWebSocket();
+        try
+        {
+            ws.Options.SetRequestHeader("Authorization", "Digest " + Convert.ToBase64String(Encoding.UTF8.GetBytes("user:password")));
+            await ws.ConnectAsync(new Uri($"ws://{baseUrl}/remoteDesktopGateway"), CancellationToken.None);
+        }
+        catch (Exception e)
+        {
+            Assert.IsTrue(e.Message.Contains("401"), "Expected 401 Unauthorized error.");
+            return;
+        }
+
+        await app.StopAsync();
+        await app.DisposeAsync();
+    }
+
+    [TestMethod]
+    public async Task TestWebServerResourceAuthFail()
+    {
+        var port = GetPort();
+        var baseUrl = $"localhost:{port}";
+        
+        var builder = WebApplication.CreateBuilder([]);
+
+        builder.WebHost.UseKestrel(options =>
+        {
+            options.ListenLocalhost(port);
+        });
+
+        // Add services to the container.
+        builder.Services.AddAuthorization();
+
+        // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+        builder.Services.AddRDPGW();
+
+        builder.Services.AddSingleton<IRDPGWAuthenticationHandler, SuccessAuthHandler>();
         builder.Services.AddSingleton<IRDPGWAuthorizationHandler, FailAuthorizationHandler>();
 
         var app = builder.Build();
@@ -322,12 +524,12 @@ public class AspNetCore_Test
 
         app.UseAuthorization();
 
-        var appTask = Task.Run(app.Run);
+        await app.StartAsync();
 
         await Task.Delay(1000);
 
         var client = new HttpClient();
-        var response = await client.GetAsync("http://localhost:50000/");
+        var response = await client.GetAsync($"http://{baseUrl}/");
 
         Assert.IsFalse(response.IsSuccessStatusCode, "Response was successful. Expected failure.");
         Assert.AreEqual(404, (int)response.StatusCode, "Expected 404 Not Found status code.");
@@ -336,7 +538,7 @@ public class AspNetCore_Test
         try
         {
             ws.Options.SetRequestHeader("Authorization", "Digest " + Convert.ToBase64String(Encoding.UTF8.GetBytes("user:password")));
-            await ws.ConnectAsync(new Uri("ws://localhost:50000/remoteDesktopGateway"), CancellationToken.None);
+            await ws.ConnectAsync(new Uri($"ws://{baseUrl}/remoteDesktopGateway"), CancellationToken.None);
         }
         catch 
         {
@@ -365,10 +567,19 @@ public class AspNetCore_Test
         
             var packetMessage = HTTP_PACKET.FromBytes(data);
             Assert.IsTrue(packetMessage.GetType().Name == packet.Expected, $"Type mismatch for packet: {packetMessage.GetType().Name} != {packet.Expected}");
+
+            if(packetMessage is HTTP_CHANNEL_PACKET_RESPONSE msg)
+            {
+                Assert.IsTrue(msg.ErrorCode == 0x800202, "Expected error code 0x800202 => Auth fail.");
+                break;
+            }
         }
 
         await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
         Assert.IsTrue(ws.State == WebSocketState.Closed, "WebSocket is not closed.");
+
+        await app.StopAsync();
+        await app.DisposeAsync();
     }
 }
 
@@ -388,7 +599,7 @@ public class FailAuthorizationHandler : IRDPGWAuthorizationHandler
     }
 }
 
-public class AuthHandler : IRDPGWAuthenticationHandler
+public class SuccessAuthHandler : IRDPGWAuthenticationHandler
 {
     public Task<RDPGWAuthenticationResult> HandleBasicAuth(string auth)
     {
@@ -403,5 +614,23 @@ public class AuthHandler : IRDPGWAuthenticationHandler
     public Task<RDPGWAuthenticationResult> HandleNegotiateAuth(string auth)
     {
         return Task.FromResult(RDPGWAuthenticationResult.Success(auth));
+    }
+}
+
+public class FailAuthHandler : IRDPGWAuthenticationHandler
+{
+    public Task<RDPGWAuthenticationResult> HandleBasicAuth(string auth)
+    {
+        return Task.FromResult(RDPGWAuthenticationResult.Failed());
+    }
+
+    public Task<RDPGWAuthenticationResult> HandleDigestAuth(string auth)
+    {
+        return Task.FromResult(RDPGWAuthenticationResult.Failed());
+    }
+
+    public Task<RDPGWAuthenticationResult> HandleNegotiateAuth(string auth)
+    {
+        return Task.FromResult(RDPGWAuthenticationResult.Failed());
     }
 }
