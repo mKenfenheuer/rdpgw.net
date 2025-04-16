@@ -60,6 +60,7 @@ public class AspNetCore_Test
             return;
         }
 
+        ws = new ClientWebSocket();
         try
         {
             ws.Options.SetRequestHeader("Authorization", "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("user:password")));
