@@ -9,7 +9,7 @@ public sealed class MarshalExtensions_Test
     [TestMethod]
     public void TestFromBytes()
     {
-        var bytes = MarshalExtensions.StructToArraySegment<TestContext>(null);
+        var bytes = MarshalExtensions.StructToArraySegment<TestContext?>(null);
         Assert.IsTrue(bytes.Count == 0, "Expected bytes to be empty.");
     }
 }

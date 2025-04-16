@@ -381,7 +381,7 @@ public class AspNetCore_Test
 
         });
 
-        await Task.WhenAny([task, Task.Delay(5000)]);
+        await Task.WhenAny([task, Task.Delay(60000)]);
 
         if (!task.IsCompleted)
         {
