@@ -329,6 +329,7 @@ public class AspNetCore_Test
 
         await Task.Delay(1000);
 
+
         var client = new HttpClient();
         var response = await client.GetAsync($"http://{baseUrl}/");
 
@@ -338,6 +339,7 @@ public class AspNetCore_Test
         ClientWebSocket ws = new ClientWebSocket();
         try
         {
+            ws.Options.SetRequestHeader("Authorization", "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("user:password")));
             await ws.ConnectAsync(new Uri($"ws://{baseUrl}/remoteDesktopGateway"), CancellationToken.None);
         }
         catch
@@ -351,69 +353,60 @@ public class AspNetCore_Test
         var packets = JsonConvert.DeserializeObject<TestPacket[]>(File.ReadAllText("packets.json"));
         Assert.IsNotNull(packets, "Failed to deserialize packets.json");
 
+        var clientPackets = packets!.Where(p => p.Type == "client" && p.TypeName != "HTTP_DATA_PACKET" && p.TypeName != "HTTP_CHANNEL_PACKET").ToArray();
 
-        var clientPackets = packets!.Where(p => p.Type == "client").ToArray();
-
-        var dummy = DummyRDPServer();
-
-        await Task.Delay(1000);
-
-        var task = Task.Run(async () =>
-        {
-
-            foreach (var packet in clientPackets)
-            {
-                Console.WriteLine($"Sending packet: {packet.TypeName}");
-                await ws.SendAsync(packet.Data, WebSocketMessageType.Binary, true, CancellationToken.None);
-                var buffer = new byte[10240];
-                Console.WriteLine($"Waiting for packet: {packet.Expected}");
-                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                Assert.IsTrue(result.MessageType == WebSocketMessageType.Binary, $"Expected binary message type. Got: {result.MessageType}");
-                Assert.IsTrue(result.EndOfMessage, "Expected end of message.");
-                var data = buffer.Take(result.Count).ToArray();
-
-                var packetMessage = HTTP_PACKET.FromBytes(data);
-                Assert.IsTrue(packetMessage.GetType().Name == packet.Expected, $"Type mismatch for packet: {packetMessage.GetType().Name} != {packet.Expected}");
-            }
-
-            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-            Assert.IsTrue(ws.State == WebSocketState.Closed, "WebSocket is not closed.");
-
-        });
-
-        await Task.WhenAny([task, Task.Delay(60000)]);
-
-        if (!task.IsCompleted)
-        {
-            Assert.Fail("Task timed out.");
-        }
-
-        await app.StopAsync();
-        await app.DisposeAsync();
-    }
-
-    private async Task DummyRDPServer()
-    {
         TcpListener listener = new TcpListener(IPAddress.Loopback, 56000);
         listener.Start();
         Console.WriteLine("Listening on port 56000...");
 
-        TcpClient? client = await listener.AcceptTcpClientAsync();
+        var buffer = new byte[10240];
+
+        foreach (var packet in clientPackets)
+        {
+            Console.WriteLine($"Sending packet: {packet.TypeName}");
+            await ws.SendAsync(packet.Data, WebSocketMessageType.Binary, true, CancellationToken.None);
+            Console.WriteLine($"Waiting for packet: {packet.Expected}");
+            var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            Assert.IsTrue(result.MessageType == WebSocketMessageType.Binary, $"Expected binary message type. Got: {result.MessageType}");
+            Assert.IsTrue(result.EndOfMessage, "Expected end of message.");
+            var data = buffer.Take(result.Count).ToArray();
+
+            var packetMessage = HTTP_PACKET.FromBytes(data);
+            Assert.IsTrue(packetMessage.GetType().Name == packet.Expected, $"Type mismatch for packet: {packetMessage.GetType().Name} != {packet.Expected}");
+        }
+
+        var channelPacket = packets!.First(p => p.Type == "client" && p.TypeName == "HTTP_CHANNEL_PACKET");
+        await ws.SendAsync(channelPacket.Data, WebSocketMessageType.Binary, true, CancellationToken.None);
+
+        TcpClient? tcpClient = await listener.AcceptTcpClientAsync();
         Console.WriteLine("Accepted connection from client.");
 
-        NetworkStream stream = client.GetStream();
+        var channelPacketResult = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+        Assert.IsTrue(channelPacketResult.MessageType == WebSocketMessageType.Binary, $"Expected binary message type. Got: {channelPacketResult.MessageType}");
+        Assert.IsTrue(channelPacketResult.EndOfMessage, "Expected end of message.");
+        var channelPacketData = buffer.Take(channelPacketResult.Count).ToArray();
 
-        byte[] buffer = new byte[1024];
-        int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-        Console.WriteLine($"Received {bytesRead} bytes from client.");
+        var channelPacketResultMessage = HTTP_PACKET.FromBytes(channelPacketData);
+        Assert.IsTrue(channelPacketResultMessage.GetType().Name == channelPacket.Expected, $"Type mismatch for packet: {channelPacketResultMessage.GetType().Name} != {channelPacket.Expected}");
 
-        await stream.WriteAsync(buffer, 0, bytesRead);
-        Console.WriteLine($"Sent {bytesRead} bytes back to client.");
+        var dataPacket = new HTTP_DATA_PACKET(new byte[] { 0x00, 0x01, 0x02, 0x03 });
 
-        await stream.FlushAsync();
-        Console.WriteLine("Flushed stream.");
-        client.Close();
-        Console.WriteLine("Closed client connection.");
+        await ws.SendAsync(dataPacket.ToBytes(), WebSocketMessageType.Binary, true, CancellationToken.None);
+
+        var stream = tcpClient.GetStream();
+        var len = await stream.ReadAsync(buffer, 0, buffer.Length, CancellationToken.None);
+
+        Assert.IsTrue(len > 0, "No data read from stream.");
+
+        var dataReceived = buffer.Take(len).ToArray();
+        Assert.IsTrue(dataReceived.Length == dataPacket.Data.Length, $"Data length mismatch: {dataReceived.Length} != {dataPacket.Data.Length}");
+        Assert.IsTrue(dataReceived.SequenceEqual(dataPacket.Data.Data), "Data mismatch.");
+
+        await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+        Assert.IsTrue(ws.State == WebSocketState.Closed, "WebSocket is not closed.");
+
+        await app.StopAsync();
+        await app.DisposeAsync();
     }
 
     [TestMethod]

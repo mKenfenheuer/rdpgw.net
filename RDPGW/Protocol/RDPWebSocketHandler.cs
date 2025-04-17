@@ -41,7 +41,7 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
         List<byte> bytes = new List<byte>();
 
         // Read data in chunks until the required number of bytes is collected.
-        while (bytes.Count < count)
+        while (bytes.Count < count && _socket.State == WebSocketState.Open)
         {
             ArraySegment<byte> buffer = new ArraySegment<byte>(new byte[count - bytes.Count]);
             var result = await _socket.ReceiveAsync(buffer, _cancellationTokenSource.Token);
@@ -55,10 +55,16 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
     /// Reads an HTTP packet from the WebSocket connection.
     /// </summary>
     /// <returns>The HTTP packet read from the connection.</returns>
-    public async Task<HTTP_PACKET> ReadPacket()
+    public async Task<HTTP_PACKET?> ReadPacket()
     {
         // Read the packet header (8 bytes).
         var headerBytes = await ReadBytes(8);
+        if(headerBytes.Count < 8)
+        {
+            return null;
+        }
+        
+        // Parse the header to get the packet length and type.
         var header = new HTTP_PACKET_HEADER(headerBytes);
 
         // Read the remaining packet data.
@@ -84,7 +90,13 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
         try
         {
             // Perform the handshake process.
-            var handshakeRequest = (HTTP_HANDSHAKE_REQUEST_PACKET)await ReadPacket();
+            var packet = await ReadPacket();
+            if(packet == null)
+            {
+                _logger.LogDebug("Unable to read HTTP_HANDSHAKE_REQUEST_PACKET packet during handshake.");
+                return;
+            }
+            var handshakeRequest = (HTTP_HANDSHAKE_REQUEST_PACKET)packet;
             HTTP_HANDSHAKE_RESPONSE_PACKET handshakeResponse = new HTTP_HANDSHAKE_RESPONSE_PACKET
             {
                 ServerVersion = handshakeRequest.ClientVersion,
@@ -97,7 +109,13 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
             _logger.LogDebug("Handshake completed.");
 
             // Handle tunnel request and response.
-            var tunnelRequest = (HTTP_TUNNEL_PACKET)await ReadPacket();
+            packet = await ReadPacket();
+            if(packet == null)
+            {
+                _logger.LogDebug("Unable to read HTTP_TUNNEL_PACKET packet during handshake.");
+                return;
+            }
+            var tunnelRequest = (HTTP_TUNNEL_PACKET)packet;
             HTTP_TUNNEL_RESPONSE httpTunnelResponse = new HTTP_TUNNEL_RESPONSE
             {
                 ServerVersion = 0x5
@@ -106,35 +124,50 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
             _logger.LogDebug("Tunnel established.");
 
             // Handle tunnel authentication.
-            var tunnelAuthRequest = (HTTP_TUNNEL_AUTH_PACKET)await ReadPacket();
+            packet = await ReadPacket();
+            if(packet == null)
+            {
+                _logger.LogDebug("Unable to read HTTP_TUNNEL_AUTH_PACKET packet during handshake.");
+                return;
+            }
+            var tunnelAuthRequest = (HTTP_TUNNEL_AUTH_PACKET)packet;
             var tunnelAuthResponse = new HTTP_TUNNEL_AUTH_RESPONSE();
             await SendPacket(tunnelAuthResponse);
             _logger.LogDebug("Tunnel authentication completed.");
 
             // Handle channel request and response.
-            var channelRequest = (HTTP_CHANNEL_PACKET)await ReadPacket();
+            packet = await ReadPacket();
+            if(packet == null)
+            {
+                _logger.LogDebug("Unable to read HTTP_CHANNEL_PACKET packet during handshake.");
+                return;
+            }
+            var channelRequest = (HTTP_CHANNEL_PACKET)packet;
             TcpClient? client = null;
 
             // Attempt to connect to the requested resources.
             foreach (var resource in channelRequest.Resources)
             {
-                if (_authorizationHandler != null && _userId != null && !await _authorizationHandler.HandleUserAuthorization(_userId, resource))
-                    break;
-                _logger.LogDebug($"Trying resource: {resource} on Port {channelRequest.Port}");
-                client = await TryConnectResource(resource, channelRequest.Port);
                 if (client != null)
                     break;
+                if (_authorizationHandler != null && _userId != null && !await _authorizationHandler.HandleUserAuthorization(_userId, resource))
+                    break;
+                _logger.LogInformation($"Trying resource: {resource} on Port {channelRequest.Port}");
+                client = await TryConnectResource(resource, channelRequest.Port);
             }
 
-            // Attempt to connect to alternate resources if primary resources fail.
-            foreach (var resource in channelRequest.AltResources)
+            if (client == null)
             {
-                if (_authorizationHandler != null && _userId != null && !await _authorizationHandler.HandleUserAuthorization(_userId, resource))
-                    break;
-                _logger.LogDebug($"Trying alternate resource: {resource} on Port {channelRequest.Port}");
-                client = await TryConnectResource(resource, channelRequest.Port);
-                if (client != null)
-                    break;
+                // Attempt to connect to alternate resources if primary resources fail.
+                foreach (var resource in channelRequest.AltResources)
+                {
+                    if (client != null)
+                        break;
+                    if (_authorizationHandler != null && _userId != null && !await _authorizationHandler.HandleUserAuthorization(_userId, resource))
+                        break;
+                    _logger.LogInformation($"Trying alternate resource: {resource} on Port {channelRequest.Port}");
+                    client = await TryConnectResource(resource, channelRequest.Port);
+                }
             }
 
             // Send channel response.
@@ -168,7 +201,14 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
             return;
         }
 
-        await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationTokenSource.Token);
+        try
+        {
+            await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cancellationTokenSource.Token);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Client unexpectedly closing WebSocket connection.");
+        }
     }
 
     /// <summary>
@@ -201,7 +241,7 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
     /// </summary>
     /// <returns>The HTTP data packet read from the connection.</returns>
     /// <exception cref="Exception">Thrown if the packet is not an HTTP data packet.</exception>
-    public async Task<HTTP_DATA_PACKET> ReadDataPacket()
+    public async Task<HTTP_DATA_PACKET?> ReadDataPacket()
     {
     retry:
         var message = await ReadPacket();
@@ -213,7 +253,8 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
         {
             goto retry;
         }
-        throw new Exception("Packet Read was not a HTTP_DATA_PACKET.");
+        _logger.LogDebug("Unable to read HTTP_DATA_PACKET packet during channel handling.");
+        return null;
     }
 
     /// <summary>

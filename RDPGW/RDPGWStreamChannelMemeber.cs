@@ -5,7 +5,8 @@ namespace RDPGW;
 /// <summary>
 /// Represents a channel member that communicates over a stream.
 /// </summary>
-public class RDPGWStreamChannelMemeber : IRRDPGWChannelMember {
+public class RDPGWStreamChannelMemeber : IRRDPGWChannelMember
+{
     private readonly Stream _stream;
 
     /// <summary>
@@ -22,11 +23,11 @@ public class RDPGWStreamChannelMemeber : IRRDPGWChannelMember {
     /// </summary>
     /// <returns>A <see cref="HTTP_DATA_PACKET"/> containing the data read from the stream.</returns>
     /// <exception cref="Exception">Thrown when no data is read from the stream.</exception>
-    public async Task<HTTP_DATA_PACKET> ReadDataPacket()
+    public async Task<HTTP_DATA_PACKET?> ReadDataPacket()
     {
         // Allocate a buffer to read data from the stream.
         byte[] buffer = new byte[8 * 1024];
-        var len = await _stream.ReadAsync(buffer, CancellationToken.None);
+        var len = await _stream.ReadAsync(buffer, 0, buffer.Length, CancellationToken.None);
 
         // Check if any data was read.
         if (len > 0)
@@ -36,7 +37,7 @@ public class RDPGWStreamChannelMemeber : IRRDPGWChannelMember {
         }
 
         // Throw an exception if no data was read.
-        throw new Exception("Read zero bytes from stream!");
+        return null;
     }
 
     /// <summary>
