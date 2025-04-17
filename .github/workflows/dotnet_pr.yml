@@ -4,7 +4,7 @@
 name: .NET
 
 on:
-  push:
+  pull_request:
     branches: [ "main" ]
 
 jobs:
@@ -28,17 +28,3 @@ jobs:
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-    - name: Publish
-      run: dotnet publish
-    - name: Clean Packages
-      run: rm RDPGW/bin/Release/*.nupkg
-    - name: Pack
-      run:  dotnet pack -p:Version=1.0.0.$(date +%s)
-    - name: Push
-      env:
-        NUGETAPIKEY: ${{ secrets.NUGETAPIKEY }}
-      run: |
-        for i in $(find RDPGW/bin/Release -type f -name '*.nupkg')
-        do
-          dotnet nuget push "$i" -s "https://api.nuget.org/v3/index.json" -k "$NUGETAPIKEY" && rm "$i"
-        done

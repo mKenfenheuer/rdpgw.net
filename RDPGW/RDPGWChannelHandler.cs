@@ -30,6 +30,10 @@ public class RDPGWChannelHandler
             {
                 // Read a data packet from the input channel.
                 var packet = await _in.ReadDataPacket();
+                if(packet == null)
+                {
+                    break;
+                }
 
                 // Send the data packet to the output channel.
                 await _out.SendDataPacket(packet);

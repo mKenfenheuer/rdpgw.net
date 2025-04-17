@@ -12,6 +12,7 @@ public class RDPGWMiddleware
     private readonly IRDPGWAuthorizationHandler? _authorizationHandler;
     private readonly RequestDelegate _next;
     private readonly ILogger<RDPGWMiddleware> _logger;
+    private readonly ILogger<RDPWebSocketHandler> _wslogger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RDPGWMiddleware"/> class.
@@ -20,12 +21,13 @@ public class RDPGWMiddleware
     /// <param name="logger">The logger instance for logging.</param>
     /// <param name="authenticationHandler">Optional authentication handler.</param>
     /// <param name="authorizationHandler">Optional authorization handler.</param>
-    public RDPGWMiddleware(RequestDelegate next, ILogger<RDPGWMiddleware> logger, IRDPGWAuthenticationHandler? authenticationHandler = null, IRDPGWAuthorizationHandler? authorizationHandler = null)
+    public RDPGWMiddleware(RequestDelegate next, ILogger<RDPGWMiddleware> logger, ILogger<RDPWebSocketHandler> wslogger, IRDPGWAuthenticationHandler? authenticationHandler = null, IRDPGWAuthorizationHandler? authorizationHandler = null)
     {
         _next = next;
         _logger = logger;
         _authenticationHandler = authenticationHandler;
         _authorizationHandler = authorizationHandler;
+        _wslogger = wslogger;
     }
 
     /// <summary>
@@ -129,7 +131,7 @@ public class RDPGWMiddleware
         var socket = await context.WebSockets.AcceptWebSocketAsync();
 
         // Create a handler for managing the WebSocket connection.
-        RDPWebSocketHandler handler = new RDPWebSocketHandler(socket, userId, _authorizationHandler);
+        RDPWebSocketHandler handler = new RDPWebSocketHandler(socket, userId, _authorizationHandler, _wslogger);
 
         // Start handling the WebSocket connection.
         await handler.HandleConnection();

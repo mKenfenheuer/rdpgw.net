@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "C#: RDPGW Debug",
+            "name": "C#: Example Debug",
             "type": "dotnet",
             "request": "launch",
             "projectPath": "${workspaceFolder}/Example/Example.csproj"
