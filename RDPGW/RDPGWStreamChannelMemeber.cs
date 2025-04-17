@@ -5,15 +5,15 @@ namespace RDPGW;
 /// <summary>
 /// Represents a channel member that communicates over a stream.
 /// </summary>
-public class RDPGWStreamChannelMemeber : IRRDPGWChannelMember
+public class RDPGWStreamChannelMember : IRRDPGWChannelMember
 {
     private readonly Stream _stream;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="RDPGWStreamChannelMemeber"/> class.
+    /// Initializes a new instance of the <see cref="RDPGWStreamChannelMember"/> class.
     /// </summary>
     /// <param name="stream">The stream used for communication.</param>
-    public RDPGWStreamChannelMemeber(Stream stream)
+    public RDPGWStreamChannelMember(Stream stream)
     {
         _stream = stream;
     }

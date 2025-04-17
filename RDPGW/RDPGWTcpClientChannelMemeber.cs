@@ -5,7 +5,7 @@ namespace RDPGW;
 /// <summary>
 /// Represents a channel member that communicates over a TCP client.
 /// </summary>
-public class RDPGWTcpClientChannelMemeber : RDPGWStreamChannelMemeber
+public class RDPGWTcpClientChannelMemeber : RDPGWStreamChannelMember
 {
     private readonly TcpClient _client;
 

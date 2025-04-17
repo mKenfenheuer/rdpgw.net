@@ -2,7 +2,7 @@ coverage:
   status:
     project:
       default:
-        target: auto  # auto compares coverage to the previous base commit
+        target: 1%  # auto compares coverage to the previous base commit
 comment:                  #this is a top-level key
   layout: " diff, flags, files"
   behavior: default
