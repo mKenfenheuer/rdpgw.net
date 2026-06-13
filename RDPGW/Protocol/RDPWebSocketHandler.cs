@@ -14,6 +14,7 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly IRDPGWAuthorizationHandler? _authorizationHandler;
     private readonly IRDPGWAuthenticationHandler? _authenticationHandler;
+    private readonly IRDPGWResourceResolver? _resourceResolver;
     private string? _userId;
     private readonly ILogger<RDPWebSocketHandler> _logger;
 
@@ -25,12 +26,14 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
     /// <param name="authorizationHandler">The authorization handler for resource access.</param>
     /// <param name="logger">The logger for diagnostic output.</param>
     /// <param name="authenticationHandler">The authentication handler, used for extended (PAA) auth.</param>
-    public RDPWebSocketHandler(WebSocket socket, string? userId, IRDPGWAuthorizationHandler? authorizationHandler, ILogger<RDPWebSocketHandler> logger, IRDPGWAuthenticationHandler? authenticationHandler = null)
+    /// <param name="resourceResolver">Optional resolver mapping a resource id to its host/port and tracking sessions.</param>
+    public RDPWebSocketHandler(WebSocket socket, string? userId, IRDPGWAuthorizationHandler? authorizationHandler, ILogger<RDPWebSocketHandler> logger, IRDPGWAuthenticationHandler? authenticationHandler = null, IRDPGWResourceResolver? resourceResolver = null)
     {
         _socket = socket;
         _cancellationTokenSource = new CancellationTokenSource();
         _authorizationHandler = authorizationHandler;
         _authenticationHandler = authenticationHandler;
+        _resourceResolver = resourceResolver;
         _userId = userId;
         _logger = logger;
     }
@@ -204,6 +207,10 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
             var channelRequest = (HTTP_CHANNEL_PACKET)packet;
             TcpClient? client = null;
             uint errorCode = HTTP_ERROR_CODE.E_PROXY_TS_CONNECTFAILED;
+            // The resource the client asked for that we connected to, if any. Tracked so the
+            // resolver's session lifecycle callbacks reference the resource id (not the resolved
+            // host), keeping the resolver's view consistent with what authorization saw.
+            string? connectedResource = null;
 
             // Authorize and attempt to connect to each requested resource (primary then alternate).
             // Authorization is enforced for every candidate, including alternate resources.
@@ -218,10 +225,27 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
                     continue;
                 }
 
-                _logger.LogInformation($"Trying resource: {resource} on Port {channelRequest.Port}");
-                client = await TryConnectResource(resource, channelRequest.Port);
+                // Resolve the requested resource to the host/port to actually connect to. A resolver
+                // may map a stable id to a backend's current address and power it on first; while it
+                // waits the client sits in channel-create and shows its native "starting" UI. With no
+                // resolver (or a null result) we connect to the requested resource verbatim.
+                var host = resource;
+                var port = channelRequest.Port;
+                if (_resourceResolver != null && _userId != null)
+                {
+                    var resolved = await _resourceResolver.ResolveAsync(_userId, resource, channelRequest.Port);
+                    if (resolved is { } target)
+                    {
+                        host = target.Host;
+                        port = target.Port;
+                    }
+                }
+
+                _logger.LogInformation($"Trying resource: {resource} -> {host} on Port {port}");
+                client = await TryConnectResource(host, port);
                 if (client != null)
                 {
+                    connectedResource = resource;
                     errorCode = HTTP_ERROR_CODE.S_OK;
                     break;
                 }
@@ -251,6 +275,12 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
 
             _logger.LogDebug("Handling Channel.");
 
+            // Notify the resolver that a session is now active on this resource.
+            if (_resourceResolver != null && _userId != null && connectedResource != null)
+            {
+                await _resourceResolver.OnConnectedAsync(_userId, connectedResource);
+            }
+
             // Handle bidirectional channel communication. When either direction ends (connection
             // closed or error) tear everything down so we don't leak the TCP/WebSocket connections.
             try
@@ -261,6 +291,12 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
             {
                 _cancellationTokenSource.Cancel();
                 client.Close();
+
+                // Notify the resolver that the session has ended.
+                if (_resourceResolver != null && _userId != null && connectedResource != null)
+                {
+                    await _resourceResolver.OnDisconnectedAsync(_userId, connectedResource);
+                }
             }
         }
         catch (Exception ex)

@@ -10,6 +10,7 @@ public class RDPGWMiddleware
 {
     private readonly IRDPGWAuthenticationHandler? _authenticationHandler;
     private readonly IRDPGWAuthorizationHandler? _authorizationHandler;
+    private readonly IRDPGWResourceResolver? _resourceResolver;
     private readonly RequestDelegate _next;
     private readonly ILogger<RDPGWMiddleware> _logger;
     private readonly ILogger<RDPWebSocketHandler> _wslogger;
@@ -21,12 +22,14 @@ public class RDPGWMiddleware
     /// <param name="logger">The logger instance for logging.</param>
     /// <param name="authenticationHandler">Optional authentication handler.</param>
     /// <param name="authorizationHandler">Optional authorization handler.</param>
-    public RDPGWMiddleware(RequestDelegate next, ILogger<RDPGWMiddleware> logger, ILogger<RDPWebSocketHandler> wslogger, IRDPGWAuthenticationHandler? authenticationHandler = null, IRDPGWAuthorizationHandler? authorizationHandler = null)
+    /// <param name="resourceResolver">Optional resource resolver for host/port mapping and session tracking.</param>
+    public RDPGWMiddleware(RequestDelegate next, ILogger<RDPGWMiddleware> logger, ILogger<RDPWebSocketHandler> wslogger, IRDPGWAuthenticationHandler? authenticationHandler = null, IRDPGWAuthorizationHandler? authorizationHandler = null, IRDPGWResourceResolver? resourceResolver = null)
     {
         _next = next;
         _logger = logger;
         _authenticationHandler = authenticationHandler;
         _authorizationHandler = authorizationHandler;
+        _resourceResolver = resourceResolver;
         _wslogger = wslogger;
     }
 
@@ -129,7 +132,7 @@ public class RDPGWMiddleware
         var socket = await context.WebSockets.AcceptWebSocketAsync();
 
         // Create a handler for managing the WebSocket connection.
-        RDPWebSocketHandler handler = new RDPWebSocketHandler(socket, userId, _authorizationHandler, _wslogger, _authenticationHandler);
+        RDPWebSocketHandler handler = new RDPWebSocketHandler(socket, userId, _authorizationHandler, _wslogger, _authenticationHandler, _resourceResolver);
 
         // Start handling the WebSocket connection.
         await handler.HandleConnection();
