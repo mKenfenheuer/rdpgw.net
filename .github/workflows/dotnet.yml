@@ -34,11 +34,15 @@ jobs:
       run: rm RDPGW/bin/Release/*.nupkg
     - name: Pack
       run:  dotnet pack -p:Version=1.0.0.$(date +%s)
+    # Get a short-lived NuGet API key
+    - name: NuGet login (OIDC → temp API key)
+      uses: NuGet/login@v1
+      id: login
+      with:
+        user: ${{ secrets.NUGET_USER }} # Recommended: use a secret like ${{ secrets.NUGET_USER }} for your nuget.org username (profile name), NOT your email address
     - name: Push
-      env:
-        NUGETAPIKEY: ${{ secrets.NUGETAPIKEY }}
       run: |
         for i in $(find RDPGW/bin/Release -type f -name '*.nupkg')
         do
-          dotnet nuget push "$i" -s "https://api.nuget.org/v3/index.json" -k "$NUGETAPIKEY" && rm "$i"
+          dotnet nuget push "$i" -s "https://api.nuget.org/v3/index.json" -k ${{steps.login.outputs.NUGET_API_KEY}} && rm "$i"
         done
