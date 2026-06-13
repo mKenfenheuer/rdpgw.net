@@ -12,6 +12,7 @@ public class RDPGWMiddleware
     private readonly IRDPGWAuthorizationHandler? _authorizationHandler;
     private readonly RequestDelegate _next;
     private readonly ILogger<RDPGWMiddleware> _logger;
+    private readonly ILogger<RDPWebSocketHandler> _wslogger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RDPGWMiddleware"/> class.
@@ -20,12 +21,13 @@ public class RDPGWMiddleware
     /// <param name="logger">The logger instance for logging.</param>
     /// <param name="authenticationHandler">Optional authentication handler.</param>
     /// <param name="authorizationHandler">Optional authorization handler.</param>
-    public RDPGWMiddleware(RequestDelegate next, ILogger<RDPGWMiddleware> logger, IRDPGWAuthenticationHandler? authenticationHandler = null, IRDPGWAuthorizationHandler? authorizationHandler = null)
+    public RDPGWMiddleware(RequestDelegate next, ILogger<RDPGWMiddleware> logger, ILogger<RDPWebSocketHandler> wslogger, IRDPGWAuthenticationHandler? authenticationHandler = null, IRDPGWAuthorizationHandler? authorizationHandler = null)
     {
         _next = next;
         _logger = logger;
         _authenticationHandler = authenticationHandler;
         _authorizationHandler = authorizationHandler;
+        _wslogger = wslogger;
     }
 
     /// <summary>
@@ -36,20 +38,18 @@ public class RDPGWMiddleware
     public Task InvokeAsync(HttpContext context)
     {
         // Check if the request is a WebSocket connection request for RDP Gateway.
-        var isConnectionRequest = (context.Request.Method == "RDG_OUT_DATA" || context.Request.Method == "RDG_IN_DATA") 
+        var isConnectionRequest = (context.Request.Method == "RDG_OUT_DATA" || context.Request.Method == "RDG_IN_DATA" || context.Request.Method == "GET") 
+                                  && context.Request.Path.StartsWithSegments("/remoteDesktopGateway")
                                   && context.Request.Headers.Connection == "Upgrade" 
                                   && context.Request.Headers.Upgrade == "websocket";
 
         if (isConnectionRequest)
         {
             // Log the incoming request method for debugging purposes.
-            _logger.LogDebug($"Handling incoming Request {context.Request.Method}");
+            _logger.LogDebug($"Handling incoming Request {context.Request.Method} {context.Request.Path}");
             // If the request is a WebSocket connection request, handle it.
             return HandleConnectionRequest(context);
         }
-
-        // Log a warning for unhandled requests.
-        _logger.LogWarning($"Unhandled Request: {context.Request.Method} {context.Request.Path}");
 
         // Pass the request to the next middleware in the pipeline.
         return _next.Invoke(context);
@@ -129,7 +129,7 @@ public class RDPGWMiddleware
         var socket = await context.WebSockets.AcceptWebSocketAsync();
 
         // Create a handler for managing the WebSocket connection.
-        RDPWebSocketHandler handler = new RDPWebSocketHandler(socket, userId, _authorizationHandler, _authenticationHandler);
+        RDPWebSocketHandler handler = new RDPWebSocketHandler(socket, userId, _authorizationHandler, _wslogger, _authenticationHandler);
 
         // Start handling the WebSocket connection.
         await handler.HandleConnection();

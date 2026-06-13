@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using RDPGW.AspNetCore;
+using RDPGW.Protocol;
 
 namespace RDPGW.Test;
 
@@ -26,6 +27,7 @@ public sealed class RDPGWMiddleware_Test
     {
         var context = new DefaultHttpContext();
         context.Request.Method = "RDG_OUT_DATA";
+        context.Request.Path = "/remoteDesktopGateway";
         context.Request.Headers.Connection = "Upgrade";
         context.Request.Headers.Upgrade = "websocket";
         if (authHeader != null)
@@ -42,6 +44,7 @@ public sealed class RDPGWMiddleware_Test
         return new RDPGWMiddleware(
             next: _ => { nextCalled[0] = true; return Task.CompletedTask; },
             logger: NullLogger<RDPGWMiddleware>.Instance,
+            wslogger: NullLogger<RDPWebSocketHandler>.Instance,
             authenticationHandler: auth);
     }
 

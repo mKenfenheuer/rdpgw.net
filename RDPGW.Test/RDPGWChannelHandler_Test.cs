@@ -11,8 +11,8 @@ public sealed class RDPGWChannelHandler_Test
     {
         var stream1 = new MemoryStream();
         var stream2 = new MemoryStream();
-        var channelMember1 = new RDPGWStreamChannelMemeber(stream1);
-        var channelMember2 = new RDPGWStreamChannelMemeber(stream2);
+        var channelMember1 = new RDPGWStreamChannelMember(stream1);
+        var channelMember2 = new RDPGWStreamChannelMember(stream2);
 
         var packet = new HTTP_DATA_PACKET(new byte[10]);
         Assert.AreEqual(packet.Data.Length, 10, $"Expected packet data of 10 bytes.");

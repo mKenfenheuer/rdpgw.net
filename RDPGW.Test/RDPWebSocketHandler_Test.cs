@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
+using Microsoft.Extensions.Logging.Abstractions;
 using RDPGW.AspNetCore;
 using RDPGW.Protocol;
 
@@ -124,7 +125,7 @@ public sealed class RDPWebSocketHandler_Test
             // No data frames: the inbound queue then yields Close, ending the data loop.
         });
 
-        var handler = new RDPWebSocketHandler(socket, "user1", new AllowAllAuthorization());
+        var handler = new RDPWebSocketHandler(socket, "user1", new AllowAllAuthorization(), NullLogger<RDPWebSocketHandler>.Instance);
         await handler.HandleConnection();
 
         listener.Stop();
@@ -150,7 +151,7 @@ public sealed class RDPWebSocketHandler_Test
             ChannelRequest("denied.example", 3389),
         });
 
-        var handler = new RDPWebSocketHandler(socket, "user1", new DenyAllAuthorization());
+        var handler = new RDPWebSocketHandler(socket, "user1", new DenyAllAuthorization(), NullLogger<RDPWebSocketHandler>.Instance);
         await handler.HandleConnection();
 
         var channelResponse = ParseSent(socket).OfType<HTTP_CHANNEL_PACKET_RESPONSE>().Single();
@@ -171,7 +172,7 @@ public sealed class RDPWebSocketHandler_Test
             ChannelRequest("127.0.0.1", 1),
         });
 
-        var handler = new RDPWebSocketHandler(socket, "user1", new AllowAllAuthorization());
+        var handler = new RDPWebSocketHandler(socket, "user1", new AllowAllAuthorization(), NullLogger<RDPWebSocketHandler>.Instance);
         await handler.HandleConnection();
 
         var channelResponse = ParseSent(socket).OfType<HTTP_CHANNEL_PACKET_RESPONSE>().Single();

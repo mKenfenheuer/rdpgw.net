@@ -11,7 +11,7 @@ public interface IRRDPGWChannelMember
     /// Reads a data packet from the channel.
     /// </summary>
     /// <returns>A task that represents the asynchronous read operation. The task result contains the data packet.</returns>
-    Task<HTTP_DATA_PACKET> ReadDataPacket();
+    Task<HTTP_DATA_PACKET?> ReadDataPacket();
 
     /// <summary>
     /// Sends a data packet to the channel.

@@ -4,23 +4,13 @@ using RDPGW.Protocol;
 namespace RDPGW.Test;
 
 [TestClass]
-public sealed class HTTP_PACKET_Test
+public sealed partial class HTTP_PACKET_Test
 {
-    private class TestPackets
-    {
-        [JsonProperty("packet")]
-        public string TypeName { get; set; } = string.Empty;
-        [JsonProperty("data")]
-        public string DataHex { get; set; } = string.Empty;
-
-        [JsonIgnore]
-        public byte[] Data => Convert.FromHexString(DataHex.Replace("0x", ""));
-    }
 
     [TestMethod]
     public void TestPacketSerilalizationAndDeserialization()
     {
-        var packets = JsonConvert.DeserializeObject<TestPackets[]>(File.ReadAllText("packets.json"));
+        var packets = JsonConvert.DeserializeObject<TestPacket[]>(File.ReadAllText("packets.json"));
         Assert.IsNotNull(packets, "Failed to deserialize packets.json");
         foreach (var packet in packets)
         {
@@ -36,7 +26,7 @@ public sealed class HTTP_PACKET_Test
     [TestMethod]
     public void TestInvalidPackets()
     {
-        var packets = JsonConvert.DeserializeObject<TestPackets[]>(File.ReadAllText("packets.json"));
+        var packets = JsonConvert.DeserializeObject<TestPacket[]>(File.ReadAllText("packets.json"));
         Assert.IsNotNull(packets, "Failed to deserialize packets.json");
         foreach (var packet in packets)
             if (packet.Data.Length > 8)
