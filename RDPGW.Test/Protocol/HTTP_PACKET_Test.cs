@@ -79,4 +79,39 @@ public sealed class HTTP_PACKET_Test
         }
         Assert.Fail("Invalid packet parsing should throw!");
     }
+
+    [TestMethod]
+    public void TestCapabilityNegotiationIntersection()
+    {
+        // Capability negotiation must return only capabilities supported by BOTH sides.
+        // Mirrors the ServerCapabilities set in RDPWebSocketHandler.
+        const HTTP_CAPABILITY_TYPE serverCaps =
+            HTTP_CAPABILITY_TYPE.HTTP_CAPABILITY_IDLE_TIMEOUT
+            | HTTP_CAPABILITY_TYPE.HTTP_CAPABILITY_MESSAGING_SERVICE_MSG
+            | HTTP_CAPABILITY_TYPE.HTTP_CAPABILITY_REAUTH;
+
+        // Client offers idle-timeout (shared), UDP transport (server lacks) and SOH (server lacks).
+        var clientCaps = HTTP_CAPABILITY_TYPE.HTTP_CAPABILITY_IDLE_TIMEOUT
+            | HTTP_CAPABILITY_TYPE.HTTP_CAPABILITY_UDP_TRANSPORT
+            | HTTP_CAPABILITY_TYPE.HTTP_CAPABILITY_TYPE_QUAR_SOH;
+
+        var negotiated = clientCaps & serverCaps;
+
+        Assert.AreEqual(HTTP_CAPABILITY_TYPE.HTTP_CAPABILITY_IDLE_TIMEOUT, negotiated,
+            "Only the idle-timeout capability is supported by both client and server.");
+
+        // The negotiated caps must survive a tunnel-response round trip.
+        var response = new HTTP_TUNNEL_RESPONSE
+        {
+            ServerVersion = 0x5,
+            StatusCode = HTTP_ERROR_CODE.S_OK,
+            CapabilityFlags = negotiated,
+            TunnelId = 1
+        };
+        var roundTripped = (HTTP_TUNNEL_RESPONSE)HTTP_PACKET.FromBytes(response.ToBytes());
+
+        Assert.AreEqual(negotiated, roundTripped.CapabilityFlags, "Negotiated caps must round-trip.");
+        Assert.AreEqual(HTTP_ERROR_CODE.S_OK, roundTripped.StatusCode);
+        Assert.AreEqual((uint)1, roundTripped.TunnelId);
+    }
 }

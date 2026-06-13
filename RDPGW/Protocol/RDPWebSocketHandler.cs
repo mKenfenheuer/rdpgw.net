@@ -13,7 +13,8 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
     private readonly WebSocket _socket;
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly IRDPGWAuthorizationHandler? _authorizationHandler;
-    private readonly string? _userId;
+    private readonly IRDPGWAuthenticationHandler? _authenticationHandler;
+    private string? _userId;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RDPWebSocketHandler"/> class.
@@ -21,11 +22,13 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
     /// <param name="socket">The WebSocket connection.</param>
     /// <param name="userId">The user ID associated with the connection.</param>
     /// <param name="authorizationHandler">The authorization handler for resource access.</param>
-    public RDPWebSocketHandler(WebSocket socket, string? userId, IRDPGWAuthorizationHandler? authorizationHandler)
+    /// <param name="authenticationHandler">The authentication handler, used for extended (PAA) auth.</param>
+    public RDPWebSocketHandler(WebSocket socket, string? userId, IRDPGWAuthorizationHandler? authorizationHandler, IRDPGWAuthenticationHandler? authenticationHandler = null)
     {
         _socket = socket;
         _cancellationTokenSource = new CancellationTokenSource();
         _authorizationHandler = authorizationHandler;
+        _authenticationHandler = authenticationHandler;
         _userId = userId;
     }
 
@@ -43,6 +46,15 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
         {
             ArraySegment<byte> buffer = new ArraySegment<byte>(new byte[count - bytes.Count]);
             var result = await _socket.ReceiveAsync(buffer, _cancellationTokenSource.Token);
+
+            // A Close frame or a zero-length read on a non-open socket means the peer has gone
+            // away. Without this guard the loop would spin forever consuming CPU.
+            if (result.MessageType == WebSocketMessageType.Close
+                || (result.Count == 0 && _socket.State != WebSocketState.Open))
+            {
+                throw new IOException("WebSocket connection closed while reading packet.");
+            }
+
             bytes.AddRange(buffer.Take(result.Count));
         }
 
@@ -79,58 +91,108 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
     /// </summary>
     public async Task HandleConnection()
     {
-        // Perform the handshake process.
+        // Perform the handshake process. Negotiate an extended-auth method that both the client
+        // offered and that we can service. We only accept PAA (cookie/token pre-auth) when an
+        // authentication handler is present to validate the cookie; otherwise fall back to NONE.
         var handshakeRequest = (HTTP_HANDSHAKE_REQUEST_PACKET)await ReadPacket();
+
+        var negotiatedAuth = HTTP_EXTENDED_AUTH.HTTP_EXTENDED_AUTH_NONE;
+        if (_authenticationHandler != null
+            && (handshakeRequest.ExtendedAuth & HTTP_EXTENDED_AUTH.HTTP_EXTENDED_AUTH_PAA) != 0)
+        {
+            negotiatedAuth = HTTP_EXTENDED_AUTH.HTTP_EXTENDED_AUTH_PAA;
+        }
+
         HTTP_HANDSHAKE_RESPONSE_PACKET handshakeResponse = new HTTP_HANDSHAKE_RESPONSE_PACKET
         {
             ServerVersion = handshakeRequest.ClientVersion,
             VersionMajor = 0x1,
             VersionMinor = handshakeRequest.VersionMinor,
-            ExtendedAuth = HTTP_EXTENDED_AUTH.HTTP_EXTENDED_AUTH_NONE,
-            ErrorCode = 0x0
+            ExtendedAuth = negotiatedAuth,
+            ErrorCode = HTTP_ERROR_CODE.S_OK
         };
         await SendPacket(handshakeResponse);
 
-        // Handle tunnel request and response.
+        // Handle tunnel request and response. Only advertise capabilities the client also
+        // offered, so we never claim support for something the client did not request.
         var tunnelRequest = (HTTP_TUNNEL_PACKET)await ReadPacket();
+
+        // If extended PAA authentication was negotiated, validate the cookie carried in the
+        // tunnel-create request before granting the tunnel.
+        var tunnelStatus = HTTP_ERROR_CODE.S_OK;
+        if (negotiatedAuth == HTTP_EXTENDED_AUTH.HTTP_EXTENDED_AUTH_PAA && _authenticationHandler != null)
+        {
+            var cookie = tunnelRequest.PAACookie?.Data ?? Array.Empty<byte>();
+            var paaResult = await _authenticationHandler.HandlePAACookieAuth(cookie);
+            if (!paaResult.IsAuthenticated)
+            {
+                tunnelStatus = HTTP_ERROR_CODE.E_PROXY_NAP_ACCESSDENIED;
+            }
+            else if (paaResult.UserId != null)
+            {
+                // The PAA cookie identifies the user when no HTTP-level auth supplied one.
+                _userId ??= paaResult.UserId;
+            }
+        }
+
         HTTP_TUNNEL_RESPONSE httpTunnelResponse = new HTTP_TUNNEL_RESPONSE
         {
-            ServerVersion = 0x5
+            ServerVersion = 0x5,
+            StatusCode = tunnelStatus,
+            // Echo back the intersection of the client's capabilities with what we support.
+            CapabilityFlags = tunnelRequest.CapabilityFlags & ServerCapabilities,
+            TunnelId = 1
         };
         await SendPacket(httpTunnelResponse);
 
+        // Abort the connection if PAA validation failed.
+        if (tunnelStatus != HTTP_ERROR_CODE.S_OK)
+            return;
+
         // Handle tunnel authentication.
         var tunnelAuthRequest = (HTTP_TUNNEL_AUTH_PACKET)await ReadPacket();
-        var tunnelAuthResponse = new HTTP_TUNNEL_AUTH_RESPONSE();
+        var tunnelAuthResponse = new HTTP_TUNNEL_AUTH_RESPONSE
+        {
+            ErrorCode = HTTP_ERROR_CODE.S_OK,
+            // Permit all redirections by default; consumers can tighten this later.
+            RedirectionFlags = HTTP_TUNNEL_REDIR_FLAGS.HTTP_TUNNEL_REDIR_ENABLE_ALL
+        };
         await SendPacket(tunnelAuthResponse);
 
         // Handle channel request and response.
         var channelRequest = (HTTP_CHANNEL_PACKET)await ReadPacket();
         TcpClient? client = null;
+        uint errorCode = HTTP_ERROR_CODE.E_PROXY_TS_CONNECTFAILED;
 
-        // Attempt to connect to the requested resources.
-        foreach (var resource in channelRequest.Resources)
+        // Authorize and attempt to connect to each requested resource (primary then alternate).
+        // Authorization is enforced for every candidate, including alternate resources.
+        foreach (var resource in channelRequest.Resources.Concat(channelRequest.AltResources))
         {
-            if (_authorizationHandler != null && _userId != null && !await _authorizationHandler.HandleUserAuthorization(_userId, resource))
-                break;
+            // Deny resources the user is not authorized to reach.
+            if (_authorizationHandler != null && _userId != null
+                && !await _authorizationHandler.HandleUserAuthorization(_userId, resource))
+            {
+                // Record access-denied, but keep checking other resources the user may reach.
+                errorCode = HTTP_ERROR_CODE.E_PROXY_RAP_ACCESSDENIED;
+                continue;
+            }
+
             client = await TryConnectResource(resource, channelRequest.Port);
             if (client != null)
+            {
+                errorCode = HTTP_ERROR_CODE.S_OK;
                 break;
-        }
+            }
 
-        // Attempt to connect to alternate resources if primary resources fail.
-        foreach (var resource in channelRequest.AltResources)
-        {
-            client = await TryConnectResource(resource, channelRequest.Port);
-            if (client != null)
-                break;
+            // We were allowed to reach this resource but could not connect to it.
+            errorCode = HTTP_ERROR_CODE.E_PROXY_TS_CONNECTFAILED;
         }
 
         // Send channel response.
         var channelResponse = new HTTP_CHANNEL_PACKET_RESPONSE
         {
-            ErrorCode = client == null ? (uint)0x800202 : 0x0,
-            ChannelId = 1
+            ErrorCode = errorCode,
+            ChannelId = client == null ? null : (uint)1
         };
         await SendPacket(channelResponse);
 
@@ -142,9 +204,27 @@ public class RDPWebSocketHandler : IRRDPGWChannelMember
         var inHandler = new RDPGWChannelHandler(this, tcpClientChannelMember);
         var outHandler = new RDPGWChannelHandler(tcpClientChannelMember, this);
 
-        // Handle bidirectional channel communication.
-        await Task.WhenAny([inHandler.HandleChannel(), outHandler.HandleChannel()]);
+        // Handle bidirectional channel communication. When either direction ends (connection
+        // closed or error) tear everything down so we don't leak the TCP/WebSocket connections.
+        try
+        {
+            await Task.WhenAny(inHandler.HandleChannel(), outHandler.HandleChannel());
+        }
+        finally
+        {
+            _cancellationTokenSource.Cancel();
+            client.Close();
+        }
     }
+
+    /// <summary>
+    /// The set of RDG capabilities this gateway implementation supports. Used to compute the
+    /// capability set negotiated with the client in the tunnel response.
+    /// </summary>
+    private const HTTP_CAPABILITY_TYPE ServerCapabilities =
+        HTTP_CAPABILITY_TYPE.HTTP_CAPABILITY_IDLE_TIMEOUT
+        | HTTP_CAPABILITY_TYPE.HTTP_CAPABILITY_MESSAGING_SERVICE_MSG
+        | HTTP_CAPABILITY_TYPE.HTTP_CAPABILITY_REAUTH;
 
     /// <summary>
     /// Attempts to connect to a resource using the specified port.
