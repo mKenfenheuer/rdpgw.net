@@ -683,7 +683,7 @@ public class AspNetCore_Test
 
             if (packetMessage is HTTP_CHANNEL_PACKET_RESPONSE msg)
             {
-                Assert.IsTrue(msg.ErrorCode == 0x800202, "Expected error code 0x800202 => Auth fail.");
+                Assert.IsTrue(msg.ErrorCode == HTTP_ERROR_CODE.E_PROXY_RAP_ACCESSDENIED, "Expected error code E_PROXY_RAP_ACCESSDENIED => Auth fail.");
                 break;
             }
         }

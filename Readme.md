@@ -12,7 +12,7 @@
 ## ✨ Features
 
 - 🖥️ Seamlessly integrate RDP Gateway into any ASP.NET Core app.
-- 🔐 Customizable authentication (Basic, Digest, Negotiate).
+- 🔐 Customizable authentication (Basic, Digest, Negotiate/NTLM, and extended PAA cookies).
 - 🛡️ Fine-grained resource-based authorization.
 - ⚙️ Simple service registration and middleware configuration.
 
@@ -64,7 +64,9 @@ app.Run();
 
 ### Custom Authentication
 
-To authenticate users, implement `IRDPGWAuthenticationHandler`. The interface provides hooks for Basic, Digest, and Negotiate methods.
+To authenticate users, implement `IRDPGWAuthenticationHandler`. The interface provides hooks for Basic, Digest, and Negotiate/NTLM methods, plus an optional hook for extended PAA (cookie/token) pre-authentication.
+
+The `auth` argument passed to each hook is the credential portion of the `Authorization` header (everything after the scheme name).
 
 ```csharp
 public class AuthHandler : IRDPGWAuthenticationHandler
@@ -84,15 +86,37 @@ public class AuthHandler : IRDPGWAuthenticationHandler
 
     public Task<RDPGWAuthenticationResult> HandleDigestAuth(string auth)
     {
-        throw new NotImplementedException(); // Not used in this example.
+        return Task.FromResult(RDPGWAuthenticationResult.Failed()); // Not used in this example.
     }
 
     public Task<RDPGWAuthenticationResult> HandleNegotiateAuth(string auth)
     {
-        throw new NotImplementedException(); // Not used in this example.
+        return Task.FromResult(RDPGWAuthenticationResult.Failed()); // Not used in this example.
     }
 }
 ```
+
+Each hook returns an `RDPGWAuthenticationResult`:
+
+- `RDPGWAuthenticationResult.Success(userId)` — authentication succeeded; `userId` is forwarded to the authorization handler.
+- `RDPGWAuthenticationResult.Failed()` — authentication failed; the client receives a `401` with a `WWW-Authenticate` challenge.
+- `RDPGWAuthenticationResult.Challenge(token)` — used by **challenge-response schemes (Negotiate / NTLM)** that need multiple round trips. The middleware returns the base64 `token` to the client in a scheme-specific `WWW-Authenticate` header (e.g. `Negotiate <token>`), and the client sends the next leg of the handshake on the following request.
+
+> **Note:** An unknown or unsupported authentication scheme is always rejected with `401` — it is never treated as authenticated.
+
+#### Extended (PAA) Authentication
+
+If the client negotiates extended `HTTP_EXTENDED_AUTH_PAA` during the handshake, the tunnel-creation request carries a PAA cookie that is validated via the optional `HandlePAACookieAuth` hook. The default implementation **rejects** the cookie, so PAA is only enabled if you override it:
+
+```csharp
+public Task<RDPGWAuthenticationResult> HandlePAACookieAuth(byte[] paaCookie)
+{
+    // Validate the cookie/token; return Success(userId) to identify the user.
+    return Task.FromResult(RDPGWAuthenticationResult.Success("user-from-cookie"));
+}
+```
+
+A failed PAA validation aborts the tunnel with `E_PROXY_NAP_ACCESSDENIED`.
 
 ### Custom Authorization
 

@@ -70,68 +70,66 @@ public class RDPGWMiddleware
         // Check if an authentication handler is provided.
         if (_authenticationHandler != null)
         {
-            // Retrieve the Authorization header from the request.
-            var authHeader = context.Request.Headers.FirstOrDefault(h => h.Key == "Authorization");
+            // Retrieve the Authorization header from the request. There may be more than
+            // one (the client can offer several schemes); use the first usable one.
+            var authHeaderValues = context.Request.Headers.Authorization;
 
-            if (authHeader.Key == null)
+            if (authHeaderValues.Count == 0 || string.IsNullOrWhiteSpace(authHeaderValues[0]))
             {
                 // If no Authorization header is present, fail the request as unauthenticated.
                 await FailRequestUnauthenticated(context);
                 return;
             }
-            else
+
+            // Split the Authorization header value to extract the authentication type and credentials.
+            var headerValue = authHeaderValues[0]!.Trim();
+            var separatorIndex = headerValue.IndexOf(' ');
+            var authType = separatorIndex < 0 ? headerValue : headerValue.Substring(0, separatorIndex);
+            var credentials = separatorIndex < 0 ? string.Empty : headerValue.Substring(separatorIndex + 1).Trim();
+
+            RDPGWAuthenticationResult result;
+
+            // Handle authentication based on the type specified in the Authorization header.
+            switch (authType)
             {
-                // Split the Authorization header value to extract the authentication type and credentials.
-                var data = authHeader.Value.ToString().Split(" ");
-                var authType = data[0];
+                case "Basic":
+                    result = await _authenticationHandler.HandleBasicAuth(credentials);
+                    break;
 
-                // Handle authentication based on the type specified in the Authorization header.
-                switch (authType)
-                {
-                    case "Basic":
-                        // Handle Basic authentication.
-                        var basicResult = await _authenticationHandler.HandleBasicAuth(String.Join(" ", data.Skip(1)));
-                        if (!basicResult.IsAuthenticated)
-                        {
-                            // If authentication fails, respond with 401 Unauthorized.
-                            await FailRequestUnauthenticated(context);
-                            return;
-                        }
-                        userId = basicResult.UserId;
-                        break;
+                case "Digest":
+                    result = await _authenticationHandler.HandleDigestAuth(credentials);
+                    break;
 
-                    case "Digest":
-                        // Handle Digest authentication.
-                        var digestResult = await _authenticationHandler.HandleDigestAuth(String.Join(" ", data.Skip(1)));
-                        if (!digestResult.IsAuthenticated)
-                        {
-                            // If authentication fails, respond with 401 Unauthorized.
-                            await FailRequestUnauthenticated(context);
-                            return;
-                        }
-                        userId = digestResult.UserId;
-                        break;
+                case "Negotiate":
+                case "NTLM":
+                    // Negotiate (SPNEGO/Kerberos) and NTLM are challenge-response schemes that
+                    // may require multiple round trips. The handler can return a continuation
+                    // token that we echo back in a 401 so the client sends the next leg.
+                    result = await _authenticationHandler.HandleNegotiateAuth(credentials);
+                    break;
 
-                    case "Negotiate":
-                        // Handle Negotiate (Kerberos/NTLM) authentication.
-                        var negotiateResult = await _authenticationHandler.HandleNegotiateAuth(String.Join(" ", data.Skip(1)));
-                        if (!negotiateResult.IsAuthenticated)
-                        {
-                            // If authentication fails, respond with 401 Unauthorized.
-                            await FailRequestUnauthenticated(context);
-                            return;
-                        }
-                        userId = negotiateResult.UserId;
-                        break;
-                }
+                default:
+                    // Unknown / unsupported scheme: never treat as authenticated.
+                    await FailRequestUnauthenticated(context);
+                    return;
             }
+
+            if (!result.IsAuthenticated)
+            {
+                // If the handler produced a continuation token (e.g. an NTLM Type 2 challenge),
+                // send it back so the client can continue the handshake; otherwise plain 401.
+                await FailRequestUnauthenticated(context, authType, result.ContinuationToken);
+                return;
+            }
+
+            userId = result.UserId;
         }
 
         // Accept the WebSocket connection.
         var socket = await context.WebSockets.AcceptWebSocketAsync();
 
         // Create a handler for managing the WebSocket connection.
-        RDPWebSocketHandler handler = new RDPWebSocketHandler(socket, userId, _authorizationHandler, _wslogger);
+        RDPWebSocketHandler handler = new RDPWebSocketHandler(socket, userId, _authorizationHandler, _wslogger, _authenticationHandler);
 
         // Start handling the WebSocket connection.
         await handler.HandleConnection();
@@ -141,16 +139,36 @@ public class RDPGWMiddleware
     /// Fails the request with a 401 Unauthorized response.
     /// </summary>
     /// <param name="context">The HTTP context of the request.</param>
+    /// <param name="scheme">
+    /// The authentication scheme being negotiated, when known. For challenge-response schemes
+    /// (Negotiate/NTLM) the WWW-Authenticate header for that scheme carries the continuation token.
+    /// </param>
+    /// <param name="continuationToken">
+    /// An optional base64 continuation token (e.g. an NTLM Type 2 challenge) to send back to the
+    /// client so it can perform the next leg of the authentication handshake.
+    /// </param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task FailRequestUnauthenticated(HttpContext context)
+    private async Task FailRequestUnauthenticated(HttpContext context, string? scheme = null, string? continuationToken = null)
     {
+        // If the response has already started we cannot change status/headers; bail out.
+        if (context.Response.HasStarted)
+            return;
+
         // Set the response status code to 401 Unauthorized.
         context.Response.StatusCode = 401;
 
-        // Add WWW-Authenticate headers for supported authentication schemes.
-        context.Response.Headers.Append("WWW-Authenticate", "Basic");
-        context.Response.Headers.Append("WWW-Authenticate", "Digest");
-        context.Response.Headers.Append("WWW-Authenticate", "Negotiate");
+        if (scheme != null && !string.IsNullOrEmpty(continuationToken))
+        {
+            // Mid-handshake: echo the scheme-specific continuation token back to the client.
+            context.Response.Headers.Append("WWW-Authenticate", $"{scheme} {continuationToken}");
+        }
+        else
+        {
+            // Initial challenge: advertise the schemes the handler can process.
+            context.Response.Headers.Append("WWW-Authenticate", "Negotiate");
+            context.Response.Headers.Append("WWW-Authenticate", "Digest");
+            context.Response.Headers.Append("WWW-Authenticate", "Basic");
+        }
 
         // Start the response.
         await context.Response.StartAsync();
