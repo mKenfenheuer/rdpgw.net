@@ -62,8 +62,14 @@ public sealed class RDPWebSocketHandler_Test
             return Task.FromResult(new WebSocketReceiveResult(count, WebSocketMessageType.Binary, true));
         }
 
+        /// <summary>When set, the Nth (0-based) call to <see cref="SendAsync"/> throws, modelling a mid-handshake transport failure.</summary>
+        public int? ThrowOnSendIndex { get; init; }
+        private int _sendCount;
+
         public override Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken)
         {
+            if (ThrowOnSendIndex == _sendCount++)
+                throw new IOException("Simulated send failure.");
             Sent.Add(buffer.ToArray());
             return Task.CompletedTask;
         }
@@ -79,12 +85,62 @@ public sealed class RDPWebSocketHandler_Test
         public Task<bool> HandleUserAuthorization(string userId, string resource) => Task.FromResult(false);
     }
 
+    /// <summary>
+    /// Authentication handler whose PAA-cookie validation result is fixed by the constructor,
+    /// recording the cookie bytes it was handed so tests can assert what the handler forwarded.
+    /// </summary>
+    private sealed class StubAuthentication : IRDPGWAuthenticationHandler
+    {
+        private readonly RDPGWAuthenticationResult _paaResult;
+        public byte[]? ReceivedCookie { get; private set; }
+
+        public StubAuthentication(RDPGWAuthenticationResult paaResult) => _paaResult = paaResult;
+
+        public Task<RDPGWAuthenticationResult> HandleBasicAuth(string auth) => Task.FromResult(RDPGWAuthenticationResult.Failed());
+        public Task<RDPGWAuthenticationResult> HandleDigestAuth(string auth) => Task.FromResult(RDPGWAuthenticationResult.Failed());
+        public Task<RDPGWAuthenticationResult> HandleNegotiateAuth(string auth) => Task.FromResult(RDPGWAuthenticationResult.Failed());
+
+        public Task<RDPGWAuthenticationResult> HandlePAACookieAuth(byte[] paaCookie)
+        {
+            ReceivedCookie = paaCookie;
+            return Task.FromResult(_paaResult);
+        }
+    }
+
     private static byte[] Hex(string h) => Convert.FromHexString(h);
 
     // Handshake -> tunnel -> tunnel-auth -> channel-create request frames, taken from packets.json.
     private static readonly byte[] HandshakeReq = Hex("010000000E000000010000000000");
     private static readonly byte[] TunnelReq = Hex("040000001E0000000E000000030000000102030405060708040001020304");
     private static readonly byte[] TunnelAuthReq = Hex("06000000380000000100260061006E0079006400650076006900630065002E0061006E007900770068006500720065000000040001020304");
+
+    /// <summary>
+    /// Builds a handshake request advertising the given extended-auth method.
+    /// </summary>
+    private static byte[] HandshakeReqWithAuth(HTTP_EXTENDED_AUTH auth)
+    {
+        var pkt = new HTTP_HANDSHAKE_REQUEST_PACKET(new HTTP_PACKET_HEADER(HTTP_PACKET_TYPE.PKT_TYPE_HANDSHAKE_REQUEST), new byte[6])
+        {
+            VersionMajor = 1,
+            VersionMinor = 0,
+            ClientVersion = 0,
+            ExtendedAuth = auth
+        };
+        return pkt.ToBytes().ToArray();
+    }
+
+    /// <summary>
+    /// Builds a tunnel-create request carrying the given PAA cookie bytes.
+    /// </summary>
+    private static byte[] TunnelReqWithPAACookie(byte[] cookie)
+    {
+        var pkt = new HTTP_TUNNEL_PACKET(new HTTP_PACKET_HEADER(HTTP_PACKET_TYPE.PKT_TYPE_TUNNEL_CREATE), new byte[8])
+        {
+            CapabilityFlags = 0,
+            PAACookie = new HTTP_BYTE_BLOB { Data = cookie }
+        };
+        return pkt.ToBytes().ToArray();
+    }
 
     /// <summary>
     /// Builds a channel-create request packet that targets the given host/port.
@@ -179,5 +235,125 @@ public sealed class RDPWebSocketHandler_Test
         Assert.AreEqual(HTTP_ERROR_CODE.E_PROXY_TS_CONNECTFAILED, channelResponse.ErrorCode,
             "A reachable-but-unconnectable resource must yield E_PROXY_TS_CONNECTFAILED.");
         Assert.IsNull(channelResponse.ChannelId);
+    }
+
+    [TestMethod]
+    public async Task PaaRequestedWithoutAuthHandlerNegotiatesNone()
+    {
+        // The client asks for PAA, but no authentication handler is configured, so the server must
+        // fall back to NONE rather than claiming PAA support it cannot service.
+        var socket = new FakeWebSocket(new[]
+        {
+            HandshakeReqWithAuth(HTTP_EXTENDED_AUTH.HTTP_EXTENDED_AUTH_PAA),
+            TunnelReq,
+            TunnelAuthReq,
+            ChannelRequest("127.0.0.1", 1),
+        });
+
+        var handler = new RDPWebSocketHandler(socket, "user1", new AllowAllAuthorization(), NullLogger<RDPWebSocketHandler>.Instance);
+        await handler.HandleConnection();
+
+        var handshakeResponse = ParseSent(socket).OfType<HTTP_HANDSHAKE_RESPONSE_PACKET>().Single();
+        Assert.AreEqual(HTTP_EXTENDED_AUTH.HTTP_EXTENDED_AUTH_NONE, handshakeResponse.ExtendedAuth,
+            "Without an authentication handler, PAA must not be negotiated.");
+    }
+
+    [TestMethod]
+    public async Task PaaCookieAuthSuccessNegotiatesPaaAndIdentifiesUser()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = (ushort)((IPEndPoint)listener.LocalEndpoint).Port;
+        var acceptTask = listener.AcceptTcpClientAsync();
+
+        var cookie = new byte[] { 0xAA, 0xBB, 0xCC };
+        var auth = new StubAuthentication(RDPGWAuthenticationResult.Success("paa-user"));
+
+        var socket = new FakeWebSocket(new[]
+        {
+            HandshakeReqWithAuth(HTTP_EXTENDED_AUTH.HTTP_EXTENDED_AUTH_PAA),
+            TunnelReqWithPAACookie(cookie),
+            TunnelAuthReq,
+            // No userId is supplied to the handler; the PAA cookie must establish it so the
+            // AllowAll authorization handler (which requires a non-null user) is consulted.
+            ChannelRequest("127.0.0.1", port),
+        });
+
+        var handler = new RDPWebSocketHandler(socket, null, new AllowAllAuthorization(), NullLogger<RDPWebSocketHandler>.Instance, auth);
+        await handler.HandleConnection();
+
+        listener.Stop();
+
+        CollectionAssert.AreEqual(cookie, auth.ReceivedCookie, "The handler must forward the PAA cookie bytes for validation.");
+
+        var sent = ParseSent(socket);
+        var handshakeResponse = sent.OfType<HTTP_HANDSHAKE_RESPONSE_PACKET>().Single();
+        Assert.AreEqual(HTTP_EXTENDED_AUTH.HTTP_EXTENDED_AUTH_PAA, handshakeResponse.ExtendedAuth,
+            "PAA must be negotiated when the client offers it and an auth handler is present.");
+
+        var tunnelResponse = sent.OfType<HTTP_TUNNEL_RESPONSE>().Single();
+        Assert.AreEqual(HTTP_ERROR_CODE.S_OK, tunnelResponse.StatusCode, "A valid PAA cookie must yield S_OK.");
+
+        var channelResponse = sent.OfType<HTTP_CHANNEL_PACKET_RESPONSE>().Single();
+        Assert.AreEqual(HTTP_ERROR_CODE.S_OK, channelResponse.ErrorCode,
+            "An authorized, reachable resource must succeed once the PAA cookie identifies the user.");
+    }
+
+    [TestMethod]
+    public async Task PaaCookieAuthFailureAbortsWithNapAccessDenied()
+    {
+        var auth = new StubAuthentication(RDPGWAuthenticationResult.Failed());
+
+        var socket = new FakeWebSocket(new[]
+        {
+            HandshakeReqWithAuth(HTTP_EXTENDED_AUTH.HTTP_EXTENDED_AUTH_PAA),
+            TunnelReqWithPAACookie(new byte[] { 0x01 }),
+            // The connection must abort right after the tunnel response; these frames are never read.
+            TunnelAuthReq,
+            ChannelRequest("127.0.0.1", 1),
+        });
+
+        var handler = new RDPWebSocketHandler(socket, null, new AllowAllAuthorization(), NullLogger<RDPWebSocketHandler>.Instance, auth);
+        await handler.HandleConnection();
+
+        var sent = ParseSent(socket);
+        var tunnelResponse = sent.OfType<HTTP_TUNNEL_RESPONSE>().Single();
+        Assert.AreEqual(HTTP_ERROR_CODE.E_PROXY_NAP_ACCESSDENIED, tunnelResponse.StatusCode,
+            "A rejected PAA cookie must yield E_PROXY_NAP_ACCESSDENIED.");
+
+        Assert.IsFalse(sent.OfType<HTTP_TUNNEL_AUTH_RESPONSE>().Any(),
+            "The connection must abort after a failed PAA validation, before tunnel authentication.");
+        Assert.IsFalse(sent.OfType<HTTP_CHANNEL_PACKET_RESPONSE>().Any(),
+            "No channel must be opened after a failed PAA validation.");
+    }
+
+    [TestMethod]
+    public async Task TransportFailureDuringHandshakeClosesGracefully()
+    {
+        // A send failure mid-handshake must be caught and the socket closed, not propagated.
+        var socket = new FakeWebSocket(new[] { HandshakeReq })
+        {
+            ThrowOnSendIndex = 0,
+        };
+
+        var handler = new RDPWebSocketHandler(socket, "user1", new AllowAllAuthorization(), NullLogger<RDPWebSocketHandler>.Instance);
+        await handler.HandleConnection();
+
+        Assert.AreEqual(WebSocketState.Closed, socket.State,
+            "A transport failure during the handshake must leave the socket closed.");
+    }
+
+    [TestMethod]
+    public async Task ConnectionClosedMidHandshakeIsHandled()
+    {
+        // The client disconnects after the handshake response, before sending the tunnel request.
+        // The read of the next packet fails; the handler must catch it and close cleanly.
+        var socket = new FakeWebSocket(new[] { HandshakeReq });
+
+        var handler = new RDPWebSocketHandler(socket, "user1", new AllowAllAuthorization(), NullLogger<RDPWebSocketHandler>.Instance);
+        await handler.HandleConnection();
+
+        Assert.IsTrue(socket.State == WebSocketState.Closed || socket.State == WebSocketState.CloseReceived,
+            "An early disconnect must be handled without throwing.");
     }
 }
